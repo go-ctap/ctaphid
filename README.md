@@ -1,5 +1,7 @@
 # go-ctaphid
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/savely-krasovsky/go-ctaphid.svg)](https://pkg.go.dev/github.com/savely-krasovsky/go-ctaphid)
+
 go-ctaphid is an idiomatic Go library implementing the CTAPHID transport protocol to interact with FIDO2 authenticators,
 featuring a clean, modern API with multiple layers of abstraction.
 
