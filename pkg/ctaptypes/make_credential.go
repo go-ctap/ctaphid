@@ -16,13 +16,10 @@ type AuthenticatorMakeCredentialRequest struct {
 
 type AuthenticatorMakeCredentialResponse struct {
 	Format                   AttestationStatementFormatIdentifier `cbor:"1,keyasint"`
+	AuthData                 *AuthData                            `cbor:"-"`
 	AuthDataRaw              []byte                               `cbor:"2,keyasint"`
 	AttestationStatement     map[string]any                       `cbor:"3,keyasint,omitempty"`
 	EnterpriseAttestation    bool                                 `cbor:"4,keyasint,omitempty"`
 	LargeBlobKey             []byte                               `cbor:"5,keyasint,omitempty"`
 	UnsignedExtensionOutputs map[ExtensionIdentifier]any          `cbor:"6,keyasint,omitempty"`
-}
-
-func (r *AuthenticatorMakeCredentialResponse) AuthData() (*AuthData, error) {
-	return ParseAuthData(r.AuthDataRaw)
 }

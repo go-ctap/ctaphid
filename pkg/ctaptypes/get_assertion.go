@@ -1,5 +1,7 @@
 package ctaptypes
 
+import "github.com/ldclabs/cose/key"
+
 type AuthenticatorGetAssertionRequest struct {
 	RPID              string                          `cbor:"1,keyasint"`
 	ClientDataHash    []byte                          `cbor:"2,keyasint"`
@@ -12,6 +14,7 @@ type AuthenticatorGetAssertionRequest struct {
 
 type AuthenticatorGetAssertionResponse struct {
 	Credential               PublicKeyCredentialDescriptor  `cbor:"1,keyasint"`
+	AuthData                 *AuthData                      `cbor:"-"`
 	AuthDataRaw              []byte                         `cbor:"2,keyasint"`
 	Signature                []byte                         `cbor:"3,keyasint"`
 	User                     *PublicKeyCredentialUserEntity `cbor:"4,keyasint,omitempty"`
@@ -21,6 +24,9 @@ type AuthenticatorGetAssertionResponse struct {
 	UnsignedExtensionOutputs map[ExtensionIdentifier]any    `cbor:"8,keyasint,omitempty"`
 }
 
-func (r *AuthenticatorGetAssertionResponse) AuthData() (*AuthData, error) {
-	return ParseAuthData(r.AuthDataRaw)
+type AuthenticatorGetAssertionHMACSecretInput struct {
+	KeyAgreement      key.Key           `cbor:"1,keyasint"`
+	SaltEnc           []byte            `cbor:"2,keyasint"`
+	SaltAuth          []byte            `cbor:"3,keyasint"`
+	PinUvAuthProtocol PinUvAuthProtocol `cbor:"4,keyasint,omitempty"`
 }

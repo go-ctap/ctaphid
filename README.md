@@ -81,6 +81,18 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [ ] Prototype BioEnrollment
 - [x] Prototype CredentialManagement
 
+### Extensions
+
+- [x] credProtect
+- [x] credBlob
+- [x] largeBlobKey
+- [ ] largeBlob
+- [x] minPinLength
+- [x] pinComplexityPolicy
+- [x] hmac-secret
+- [ ] hmac-secret-mc
+- [x] thirdPartyPayment
+
 ### Crypto
 
 - [x] PIN/UV Auth Protocol One

@@ -13,23 +13,59 @@ import (
 	"github.com/sstallion/go-hid"
 )
 
-// SelectDevice allows selecting a device by confirming presence;
-// useful while a user has many tokens connected. Works only with FIDO 2.1 tokens (including PRE).
-func SelectDevice(opts ...ctap.ClientOption) (*device.Device, error) {
-	var devPaths []string
+func EnumerateFIDODevices() ([]*hid.DeviceInfo, error) {
+	var devInfos []*hid.DeviceInfo
 	if err := hid.Enumerate(hid.VendorIDAny, hid.ProductIDAny, func(info *hid.DeviceInfo) error {
 		if info.UsagePage != 0xf1d0 || info.Usage != 0x01 {
 			return nil
 		}
 
-		devPaths = append(devPaths, info.Path)
+		devInfos = append(devInfos, info)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
-	if len(devPaths) == 1 {
-		return device.New(devPaths[0], opts...)
+	return devInfos, nil
+}
+
+type Options struct {
+	DevInfos       []*hid.DeviceInfo
+	CTAPClientOpts []ctap.ClientOption
+}
+
+type Option func(*Options)
+
+func WithDeviceInfos(devInfos []*hid.DeviceInfo) Option {
+	return func(o *Options) {
+		o.DevInfos = devInfos
+	}
+}
+
+func WithCTAPClientOpts(opts ...ctap.ClientOption) Option {
+	return func(o *Options) {
+		o.CTAPClientOpts = opts
+	}
+}
+
+// SelectDevice allows selecting a device by confirming presence;
+// useful while a user has many tokens connected. Works only with FIDO 2.1 tokens (including PRE).
+func SelectDevice(opts ...Option) (*device.Device, error) {
+	options := new(Options)
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	if options.DevInfos == nil {
+		var err error
+		options.DevInfos, err = EnumerateFIDODevices()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(options.DevInfos) == 1 {
+		return device.New(options.DevInfos[0].Path, options.CTAPClientOpts...)
 	}
 
 	devices := make([]*device.Device, 0)
@@ -44,8 +80,8 @@ func SelectDevice(opts ...ctap.ClientOption) (*device.Device, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	for _, path := range devPaths {
-		dev, err := device.New(path, opts...)
+	for _, info := range options.DevInfos {
+		dev, err := device.New(info.Path, options.CTAPClientOpts...)
 		if err != nil {
 			return nil, err
 		}

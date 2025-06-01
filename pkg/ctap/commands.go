@@ -105,6 +105,10 @@ func (cl *Client) MakeCredential(
 	if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
 		return nil, err
 	}
+	resp.AuthData, err = ctaptypes.ParseAuthData(resp.AuthDataRaw)
+	if err != nil {
+		return nil, err
+	}
 
 	return resp, nil
 }
@@ -159,6 +163,11 @@ func (cl *Client) GetAssertion(
 			yield(nil, err)
 			return
 		}
+		respBegin.AuthData, err = ctaptypes.ParseAuthData(respBegin.AuthDataRaw)
+		if err != nil {
+			yield(nil, err)
+			return
+		}
 
 		if !yield(respBegin, nil) {
 			return
@@ -175,6 +184,12 @@ func (cl *Client) GetAssertion(
 			var resp *ctaptypes.AuthenticatorGetAssertionResponse
 			if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
 				yield(nil, err)
+				return
+			}
+			resp.AuthData, err = ctaptypes.ParseAuthData(resp.AuthDataRaw)
+			if err != nil {
+				yield(nil, err)
+				return
 			}
 
 			if !yield(resp, nil) {

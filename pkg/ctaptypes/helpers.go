@@ -31,19 +31,21 @@ func ParseAuthData(authData []byte) (*AuthData, error) {
 		Flags:     AuthDataFlag(authData[32]),
 		SignCount: binary.BigEndian.Uint32(authData[33:37]),
 	}
-	offset := 55
+	offset := 37
 	if d.AttestedCredentialDataIncluded() {
 		credData := &AttestedCredentialData{
-			AAGUID: uuid.UUID(authData[37 : 37+16]),
+			AAGUID: uuid.UUID(authData[offset : offset+16]),
 		}
+		offset += 16
 
 		// Credential ID
-		length := binary.BigEndian.Uint16(authData[53 : 53+2])
-		credData.CredentialID = authData[55 : 55+length]
+		length := binary.BigEndian.Uint16(authData[offset : offset+2])
+		offset += 2
+		credData.CredentialID = authData[offset : offset+int(length)]
 		offset += int(length)
 
 		// Credential Public Key
-		dec := cbor.NewDecoder(bytes.NewReader(authData[55+length:]))
+		dec := cbor.NewDecoder(bytes.NewReader(authData[offset:]))
 		if err := dec.Decode(&credData.CredentialPublicKey); err != nil {
 			return nil, err
 		}

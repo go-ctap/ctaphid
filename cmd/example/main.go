@@ -17,7 +17,7 @@ func main() {
 		Level: lvl,
 	}))
 
-	dev, err := sugar.SelectDevice(ctap.WithLogger(logger))
+	dev, err := sugar.SelectDevice(sugar.WithCTAPClientOpts(ctap.WithLogger(logger)))
 	if err != nil {
 		panic(err)
 	}

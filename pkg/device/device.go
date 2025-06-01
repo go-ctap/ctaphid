@@ -10,7 +10,9 @@ import (
 	"slices"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/ldclabs/cose/key"
 	"github.com/samber/lo"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/crypto"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctap"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaphid"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
@@ -145,17 +147,122 @@ func (d *Device) GetAssertion(
 	extensions map[ctaptypes.ExtensionIdentifier]any,
 	options map[ctaptypes.Option]bool,
 ) func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
-	return d.ctapClient.GetAssertion(
-		d.device,
-		d.cid,
-		d.info.PinUvAuthProtocols[0],
-		pinUvAuthToken,
-		rpID,
-		clientDataHash,
-		allowList,
-		extensions,
-		options,
-	)
+	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
+		var (
+			protocol     *crypto.PinUvAuthProtocol
+			sharedSecret []byte
+		)
+
+		hmacGetSecretInput, ok := extensions[ctaptypes.ExtensionIdentifierHMACSecret]
+		if ok {
+			input, ok := hmacGetSecretInput.(*HMACSecretInput)
+			if !ok {
+				yield(nil, newErrorMessage(ErrBadType, "*device.HMACSecretInput was expected"))
+				return
+			}
+			salt := slices.Concat(input.Salt1, input.Salt2)
+
+			var err error
+			protocol, err = crypto.NewPinUvAuthProtocol(d.info.PinUvAuthProtocols[0])
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			var platformCoseKey key.Key
+			platformCoseKey, sharedSecret, err = protocol.Encapsulate(keyAgreement)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			saltEnc, err := protocol.Encrypt(sharedSecret, salt)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			saltAuth := crypto.Authenticate(
+				d.info.PinUvAuthProtocols[0],
+				sharedSecret,
+				saltEnc,
+			)
+
+			extensions[ctaptypes.ExtensionIdentifierHMACSecret] = ctaptypes.AuthenticatorGetAssertionHMACSecretInput{
+				KeyAgreement:      platformCoseKey,
+				SaltEnc:           saltEnc,
+				SaltAuth:          saltAuth,
+				PinUvAuthProtocol: d.info.PinUvAuthProtocols[0],
+			}
+		}
+
+		for assertion, err := range d.ctapClient.GetAssertion(
+			d.device,
+			d.cid,
+			d.info.PinUvAuthProtocols[0],
+			pinUvAuthToken,
+			rpID,
+			clientDataHash,
+			allowList,
+			extensions,
+			options,
+		) {
+			if err != nil {
+				yield(assertion, err)
+				return
+			}
+
+			// Yield assertions without extension data
+			if !assertion.AuthData.ExtensionDataIncluded() {
+				yield(assertion, err)
+				return
+			}
+
+			// Yield assertions without hmac-secret extension payload
+			encryptedSalt, ok := assertion.AuthData.Extensions[ctaptypes.ExtensionIdentifierHMACSecret]
+			if !ok {
+				yield(assertion, err)
+				return
+			}
+
+			b, ok := encryptedSalt.([]byte)
+			if !ok {
+				yield(nil, newErrorMessage(ErrBadType, "[]byte was expected"))
+				return
+			}
+
+			salt, err := protocol.Decrypt(sharedSecret, b)
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+
+			switch len(salt) {
+			case 32:
+				assertion.AuthData.Extensions[ctaptypes.ExtensionIdentifierHMACSecret] = &HMACSecretOutput{
+					Output1: salt,
+				}
+			case 64:
+				assertion.AuthData.Extensions[ctaptypes.ExtensionIdentifierHMACSecret] = &HMACSecretOutput{
+					Output1: salt[:32],
+					Output2: salt[32:],
+				}
+			default:
+				yield(nil, newErrorMessage(ErrInvalidSaltSize, "salt must be 32 or 64 bytes"))
+				return
+			}
+
+			if !yield(assertion, err) {
+				return
+			}
+		}
+	}
 }
 
 // GetInfo returns the struct containing metadata and capabilities of the device.
