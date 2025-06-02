@@ -13,6 +13,7 @@ import (
 	"github.com/savely-krasovsky/go-ctaphid/pkg/crypto"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaphid"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/cose/key"
@@ -23,32 +24,13 @@ type Client struct {
 	encMode cbor.EncMode
 }
 
-type ClientOption func(*Client)
+func NewClient(opts ...options.Option) *Client {
+	oo := options.NewOptions(opts...)
 
-func WithLogger(logger *slog.Logger) ClientOption {
-	return func(cl *Client) {
-		cl.logger = logger
+	return &Client{
+		logger:  oo.Logger,
+		encMode: oo.EncMode,
 	}
-}
-
-func WithCustomCBOREncMode(encMode cbor.EncMode) ClientOption {
-	return func(cl *Client) {
-		cl.encMode = encMode
-	}
-}
-
-func NewClient(opts ...ClientOption) *Client {
-	encMode, _ := cbor.CTAP2EncOptions().EncMode()
-	cl := &Client{
-		logger:  slog.Default(),
-		encMode: encMode,
-	}
-
-	for _, opt := range opts {
-		opt(cl)
-	}
-
-	return cl
 }
 
 func (cl *Client) MakeCredential(

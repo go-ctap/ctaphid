@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 
+	"github.com/Microsoft/go-winio"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/cose/key"
 	"github.com/samber/lo"
@@ -16,14 +18,15 @@ import (
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctap"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaphid"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
-
+	"github.com/savely-krasovsky/go-ctaphid/pkg/hidproxy"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
 	"github.com/sstallion/go-hid"
 )
 
 // Device represents a physical or virtual hardware device supporting CTAP communication protocols.
 type Device struct {
 	Path       string
-	device     *hid.Device
+	device     io.ReadWriteCloser
 	cid        [4]byte
 	info       *ctaptypes.AuthenticatorGetInfoResponse
 	ctapClient *ctap.Client
@@ -32,10 +35,32 @@ type Device struct {
 
 // New creates a new Device instance from a given HID path.
 // It also initializes a new underlying CTAP2 client with the provided options.
-func New(path string, opts ...ctap.ClientOption) (*Device, error) {
-	dev, err := hid.OpenPath(path)
-	if err != nil {
-		return nil, err
+func New(path string, opts ...options.Option) (*Device, error) {
+	oo := options.NewOptions(opts...)
+
+	var (
+		dev io.ReadWriteCloser
+		err error
+	)
+	if !oo.UseNamedPipe {
+		dev, err = hid.OpenPath(path)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dev, err = winio.DialPipeContext(context.Background(), hidproxy.NamedPipePath)
+		if err != nil {
+			return nil, err
+		}
+
+		pMsg, err := hidproxy.NewMessage(hidproxy.CommandStart, path)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := pMsg.WriteTo(dev); err != nil {
+			return nil, err
+		}
 	}
 
 	encMode, _ := cbor.CTAP2EncOptions().EncMode()
@@ -70,7 +95,10 @@ func New(path string, opts ...ctap.ClientOption) (*Device, error) {
 
 // Close closes the underlying HID device.
 func (d *Device) Close() error {
-	return d.device.Close()
+	if err := d.device.Close(); err != nil {
+		return err
+	}
+	return hid.Exit()
 }
 
 // Ping sends a ping message to the device and verifies the response matches the sent data.

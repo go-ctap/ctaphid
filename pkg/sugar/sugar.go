@@ -5,67 +5,78 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/ctap"
+	"github.com/Microsoft/go-winio"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/samber/lo"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/device"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/hidproxy"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
 
 	"github.com/samber/mo"
 	"github.com/sstallion/go-hid"
 )
 
-func EnumerateFIDODevices() ([]*hid.DeviceInfo, error) {
-	var devInfos []*hid.DeviceInfo
-	if err := hid.Enumerate(hid.VendorIDAny, hid.ProductIDAny, func(info *hid.DeviceInfo) error {
-		if info.UsagePage != 0xf1d0 || info.Usage != 0x01 {
+func EnumerateFIDODevices(ctx context.Context, opts ...options.Option) ([]*hid.DeviceInfo, error) {
+	oo := options.NewOptions(opts...)
+
+	devInfos := make([]*hid.DeviceInfo, 0)
+	if !oo.UseNamedPipe {
+		if err := hid.Enumerate(hid.VendorIDAny, hid.ProductIDAny, func(info *hid.DeviceInfo) error {
+			if info.UsagePage != 0xf1d0 || info.Usage != 0x01 {
+				return nil
+			}
+
+			devInfos = append(devInfos, info)
 			return nil
+		}); err != nil {
+			return nil, err
+		}
+	} else {
+		dev, err := winio.DialPipeContext(ctx, hidproxy.NamedPipePath)
+		if err != nil {
+			return nil, err
 		}
 
-		devInfos = append(devInfos, info)
-		return nil
-	}); err != nil {
-		return nil, err
+		msg, err := hidproxy.NewMessage(hidproxy.CommandEnumerate, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := msg.WriteTo(dev); err != nil {
+			return nil, err
+		}
+
+		msg, err = hidproxy.ParseMessage(dev)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := cbor.Unmarshal(msg.Data, &devInfos); err != nil {
+			return nil, err
+		}
 	}
 
 	return devInfos, nil
 }
 
-type Options struct {
-	DevInfos       []*hid.DeviceInfo
-	CTAPClientOpts []ctap.ClientOption
-}
-
-type Option func(*Options)
-
-func WithDeviceInfos(devInfos []*hid.DeviceInfo) Option {
-	return func(o *Options) {
-		o.DevInfos = devInfos
-	}
-}
-
-func WithCTAPClientOpts(opts ...ctap.ClientOption) Option {
-	return func(o *Options) {
-		o.CTAPClientOpts = opts
-	}
-}
-
 // SelectDevice allows selecting a device by confirming presence;
 // useful while a user has many tokens connected. Works only with FIDO 2.1 tokens (including PRE).
-func SelectDevice(opts ...Option) (*device.Device, error) {
-	options := new(Options)
-	for _, opt := range opts {
-		opt(options)
-	}
+func SelectDevice(opts ...options.Option) (*device.Device, error) {
+	oo := options.NewOptions(opts...)
 
-	if options.DevInfos == nil {
-		var err error
-		options.DevInfos, err = EnumerateFIDODevices()
+	if oo.Paths == nil {
+		devInfos, err := EnumerateFIDODevices(context.Background(), opts...)
 		if err != nil {
 			return nil, err
 		}
+		oo.Paths = lo.Map[*hid.DeviceInfo, string](devInfos, func(devInfo *hid.DeviceInfo, _ int) string {
+			return devInfo.Path
+		})
 	}
 
-	if len(options.DevInfos) == 1 {
-		return device.New(options.DevInfos[0].Path, options.CTAPClientOpts...)
+	if len(oo.Paths) == 1 {
+		return device.New(oo.Paths[0], opts...)
 	}
 
 	devices := make([]*device.Device, 0)
@@ -80,8 +91,8 @@ func SelectDevice(opts ...Option) (*device.Device, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	for _, info := range options.DevInfos {
-		dev, err := device.New(info.Path, options.CTAPClientOpts...)
+	for _, p := range oo.Paths {
+		dev, err := device.New(p, opts...)
 		if err != nil {
 			return nil, err
 		}

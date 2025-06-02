@@ -17,10 +17,16 @@ func main() {
 		Level: lvl,
 	}))
 
-	dev, err := sugar.SelectDevice(sugar.WithCTAPClientOpts(ctap.WithLogger(logger)))
+	dev, err := sugar.SelectDevice(
+		options.WithUseNamedPipes(),
+		options.WithLogger(logger),
+	)
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		_ = dev.Close()
+	}()
 
 	retries, powerCycleRequired, err := dev.GetPINRetries()
 	if err != nil {
