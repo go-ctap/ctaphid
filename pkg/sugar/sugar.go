@@ -5,56 +5,30 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/Microsoft/go-winio"
-	"github.com/fxamacker/cbor/v2"
 	"github.com/samber/lo"
+
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/device"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/hidproxy"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
 
 	"github.com/samber/mo"
 	"github.com/sstallion/go-hid"
 )
 
-func EnumerateFIDODevices(ctx context.Context, opts ...options.Option) ([]*hid.DeviceInfo, error) {
+func EnumerateFIDODevices(opts ...options.Option) ([]*hid.DeviceInfo, error) {
 	oo := options.NewOptions(opts...)
 
 	devInfos := make([]*hid.DeviceInfo, 0)
-	if !oo.UseNamedPipe {
-		if err := hid.Enumerate(hid.VendorIDAny, hid.ProductIDAny, func(info *hid.DeviceInfo) error {
-			if info.UsagePage != 0xf1d0 || info.Usage != 0x01 {
-				return nil
-			}
-
-			devInfos = append(devInfos, info)
+	ctx := context.WithValue(oo.Context, device.CtxKeyUseNamedPipe, oo.UseNamedPipe)
+	if err := device.Enumerate(ctx, hid.VendorIDAny, hid.ProductIDAny, func(info *hid.DeviceInfo) error {
+		if info.UsagePage != 0xf1d0 || info.Usage != 0x01 {
 			return nil
-		}); err != nil {
-			return nil, err
-		}
-	} else {
-		dev, err := winio.DialPipeContext(ctx, hidproxy.NamedPipePath)
-		if err != nil {
-			return nil, err
 		}
 
-		msg, err := hidproxy.NewMessage(hidproxy.CommandEnumerate, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		if _, err := msg.WriteTo(dev); err != nil {
-			return nil, err
-		}
-
-		msg, err = hidproxy.ParseMessage(dev)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := cbor.Unmarshal(msg.Data, &devInfos); err != nil {
-			return nil, err
-		}
+		devInfos = append(devInfos, info)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return devInfos, nil
@@ -66,7 +40,7 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 	oo := options.NewOptions(opts...)
 
 	if oo.Paths == nil {
-		devInfos, err := EnumerateFIDODevices(context.Background(), opts...)
+		devInfos, err := EnumerateFIDODevices(opts...)
 		if err != nil {
 			return nil, err
 		}

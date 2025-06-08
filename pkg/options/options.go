@@ -1,6 +1,7 @@
 package options
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/fxamacker/cbor/v2"
@@ -9,6 +10,7 @@ import (
 type Options struct {
 	Logger       *slog.Logger
 	EncMode      cbor.EncMode
+	Context      context.Context
 	Paths        []string
 	UseNamedPipe bool
 }
@@ -24,6 +26,12 @@ func WithLogger(logger *slog.Logger) Option {
 func WithEncMode(encMode cbor.EncMode) Option {
 	return func(opts *Options) {
 		opts.EncMode = encMode
+	}
+}
+
+func WithContext(ctx context.Context) Option {
+	return func(opts *Options) {
+		opts.Context = ctx
 	}
 }
 
@@ -44,6 +52,7 @@ func NewOptions(opts ...Option) *Options {
 	oo := &Options{
 		Logger:  slog.Default(),
 		EncMode: encMode,
+		Context: context.Background(),
 	}
 
 	for _, opt := range opts {

@@ -40,7 +40,7 @@ func NewPinUvAuthProtocol(number ctaptypes.PinUvAuthProtocol) (*PinUvAuthProtoco
 
 	// Specification explicitly requires COSE_Key to contain only the necessary parameters.
 	// Some keys accept it anyway, but some are not, e.g., SoloKeys Solo 2.
-	platformPubkey.Delete(iana.KeyParameterKid)
+	delete(platformPubkey, iana.KeyParameterKid)
 
 	return &PinUvAuthProtocol{
 		Number:             number,

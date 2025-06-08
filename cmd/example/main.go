@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/ctap"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/sugar"
 )
 
@@ -18,7 +18,8 @@ func main() {
 	}))
 
 	dev, err := sugar.SelectDevice(
-		options.WithUseNamedPipes(),
+		// Comment if you are using Linux or macOS
+		//options.WithUseNamedPipes(),
 		options.WithLogger(logger),
 	)
 	if err != nil {
