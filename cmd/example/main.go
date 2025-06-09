@@ -19,7 +19,7 @@ func main() {
 
 	dev, err := sugar.SelectDevice(
 		// Comment if you are using Linux or macOS
-		//options.WithUseNamedPipes(),
+		options.WithUseNamedPipes(),
 		options.WithLogger(logger),
 	)
 	if err != nil {

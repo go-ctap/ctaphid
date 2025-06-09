@@ -49,7 +49,7 @@ func Enumerate(ctx context.Context, vid, pid uint16, enumFn hid.EnumFunc) error 
 		}
 	}
 
-	return hid.Enumerate(C.uint16_t(vid), C.uint16_t(pid), enumFn)
+	return hid.Enumerate(vid, pid, enumFn)
 }
 
 func OpenPath(ctx context.Context, path string) (dev io.ReadWriteCloser, err error) {
@@ -57,7 +57,7 @@ func OpenPath(ctx context.Context, path string) (dev io.ReadWriteCloser, err err
 	if v != nil {
 		useNamedPipe, ok := v.(bool)
 		if ok && useNamedPipe {
-			dev, err := winio.DialPipeContext(ctx, path)
+			dev, err := winio.DialPipeContext(ctx, hidproxy.NamedPipePath)
 			if err != nil {
 				return nil, err
 			}
@@ -70,6 +70,8 @@ func OpenPath(ctx context.Context, path string) (dev io.ReadWriteCloser, err err
 			if _, err := pMsg.WriteTo(dev); err != nil {
 				return nil, err
 			}
+
+			return dev, nil
 		}
 	}
 
