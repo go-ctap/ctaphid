@@ -9,6 +9,7 @@ var (
 	ErrPinUvAuthTokenRequired   = errors.New("device: pinUvAuthToken required")
 	ErrBuiltInUVRequired        = errors.New("device: built-in user verification required")
 	ErrNotSupported             = errors.New("device: not supported")
+	SyntaxError                 = errors.New("device: syntax error")
 	ErrBadType                  = errors.New("device: bad type")
 	ErrInvalidSaltSize          = errors.New("device: invalid salt size")
 	ErrPinNotSet                = errors.New("device: pin not set")

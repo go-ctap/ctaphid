@@ -14,6 +14,7 @@ import (
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaphid"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/cose/key"
@@ -39,14 +40,14 @@ func (cl *Client) MakeCredential(
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
 	clientDataHash []byte,
-	rp ctaptypes.PublicKeyCredentialRpEntity,
-	user ctaptypes.PublicKeyCredentialUserEntity,
-	pubKeyCredParams []ctaptypes.PublicKeyCredentialParameters,
-	excludeList []ctaptypes.PublicKeyCredentialDescriptor,
-	extensions map[ctaptypes.ExtensionIdentifier]any,
+	rp webauthntypes.PublicKeyCredentialRpEntity,
+	user webauthntypes.PublicKeyCredentialUserEntity,
+	pubKeyCredParams []webauthntypes.PublicKeyCredentialParameters,
+	excludeList []webauthntypes.PublicKeyCredentialDescriptor,
+	extensions *ctaptypes.CreateExtensionInputs,
 	options map[ctaptypes.Option]bool,
 	enterpriseAttestation uint,
-	attestationFormatsPreference []ctaptypes.AttestationStatementFormatIdentifier,
+	attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier,
 ) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
 	req := &ctaptypes.AuthenticatorMakeCredentialRequest{
 		ClientDataHash:               clientDataHash,
@@ -87,7 +88,7 @@ func (cl *Client) MakeCredential(
 	if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
 		return nil, err
 	}
-	resp.AuthData, err = ctaptypes.ParseAuthData(resp.AuthDataRaw)
+	resp.AuthData, err = ctaptypes.ParseMakeCredentialAuthData(resp.AuthDataRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +103,8 @@ func (cl *Client) GetAssertion(
 	pinUvAuthToken []byte,
 	rpID string,
 	clientDataHash []byte,
-	allowList []ctaptypes.PublicKeyCredentialDescriptor,
-	extensions map[ctaptypes.ExtensionIdentifier]any,
+	allowList []webauthntypes.PublicKeyCredentialDescriptor,
+	extensions *ctaptypes.GetExtensionInputs,
 	options map[ctaptypes.Option]bool,
 ) func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
 	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
@@ -145,7 +146,7 @@ func (cl *Client) GetAssertion(
 			yield(nil, err)
 			return
 		}
-		respBegin.AuthData, err = ctaptypes.ParseAuthData(respBegin.AuthDataRaw)
+		respBegin.AuthData, err = ctaptypes.ParseGetAssertionAuthData(respBegin.AuthDataRaw)
 		if err != nil {
 			yield(nil, err)
 			return
@@ -168,7 +169,7 @@ func (cl *Client) GetAssertion(
 				yield(nil, err)
 				return
 			}
-			resp.AuthData, err = ctaptypes.ParseAuthData(resp.AuthDataRaw)
+			resp.AuthData, err = ctaptypes.ParseGetAssertionAuthData(resp.AuthDataRaw)
 			if err != nil {
 				yield(nil, err)
 				return
@@ -851,7 +852,7 @@ func (cl *Client) DeleteCredential(
 	preview bool,
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
-	credentialID ctaptypes.PublicKeyCredentialDescriptor,
+	credentialID webauthntypes.PublicKeyCredentialDescriptor,
 ) error {
 	bSubCommandParams, err := cl.encMode.Marshal(ctaptypes.CredentialManagementSubCommandParams{
 		CredentialID: credentialID,
@@ -904,8 +905,8 @@ func (cl *Client) UpdateUserInformation(
 	preview bool,
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
-	credentialID ctaptypes.PublicKeyCredentialDescriptor,
-	user ctaptypes.PublicKeyCredentialUserEntity,
+	credentialID webauthntypes.PublicKeyCredentialDescriptor,
+	user webauthntypes.PublicKeyCredentialUserEntity,
 ) error {
 	bSubCommandParams, err := cl.encMode.Marshal(ctaptypes.CredentialManagementSubCommandParams{
 		CredentialID: credentialID,

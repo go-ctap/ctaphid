@@ -36,6 +36,7 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - Both low-level access and ergonomic, high-level APIs.
 - Modern Go design, making use of language features like iterators.
 - `cgo` is currently used for HID transport, but FIDO2 protocol logic is pure Go.
+- Windows Hello initial support. Works completely without `cgo` (plain syscalls).
 
 ## Feature Matrix
 

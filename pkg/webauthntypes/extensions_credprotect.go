@@ -1,4 +1,4 @@
-package device
+package webauthntypes
 
 type CredentialProtectionPolicy string
 
@@ -8,17 +8,7 @@ const (
 	CredentialProtectionPolicyUserVerificationRequired                     CredentialProtectionPolicy = "userVerificationRequired"
 )
 
-type CredProtectInput struct {
+type CreateCredentialProtectionInputs struct {
 	CredentialProtectionPolicy        CredentialProtectionPolicy `cbor:"credentialProtectionPolicy"`
 	EnforceCredentialProtectionPolicy bool                       `cbor:"enforceCredentialProtectionPolicy"`
-}
-
-type HMACSecretInput struct {
-	Salt1 []byte
-	Salt2 []byte
-}
-
-type HMACSecretOutput struct {
-	Output1 []byte
-	Output2 []byte
 }

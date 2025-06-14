@@ -18,14 +18,6 @@ const (
 	AuthDataFlagExtensionDataIncluded
 )
 
-type AuthData struct {
-	RPIDHash               []byte
-	Flags                  AuthDataFlag
-	SignCount              uint32
-	AttestedCredentialData *AttestedCredentialData
-	Extensions             map[ExtensionIdentifier]any
-}
-
 type AttestedCredentialData struct {
 	AAGUID              uuid.UUID
 	CredentialID        []byte

@@ -1,4 +1,4 @@
-package ctaptypes
+package webauthntypes
 
 import "github.com/ldclabs/cose/key"
 
@@ -16,6 +16,10 @@ type (
 	// ExtensionIdentifier is an enum consisting of IANA registered Extension Identifiers.
 	// https://www.iana.org/assignments/webauthn/webauthn.xhtml
 	ExtensionIdentifier string
+	// PublicKeyCredentialHint is used by WebAuthn Relying Parties to communicate hints to the user-agent about
+	// how a request may be best completed.
+	// https://www.w3.org/TR/webauthn-3/#enum-hints
+	PublicKeyCredentialHint string
 )
 
 const (
@@ -54,11 +58,19 @@ const (
 	ExtensionIdentifierCredentialBlob         ExtensionIdentifier = "credBlob"
 	ExtensionIdentifierLargeBlobKey           ExtensionIdentifier = "largeBlobKey"
 	ExtensionIdentifierMinPinLength           ExtensionIdentifier = "minPinLength"
+	ExtensionIdentifierPinComplexityPolicy    ExtensionIdentifier = "pinComplexityPolicy"
 	ExtensionIdentifierHMACSecret             ExtensionIdentifier = "hmac-secret"
+	ExtensionIdentifierHMACSecretMC           ExtensionIdentifier = "hmac-secret-mc"
 	ExtensionIdentifierAppIDExclude           ExtensionIdentifier = "appidExclude"
 	ExtensionIdentifierCredentialProperties   ExtensionIdentifier = "credProps"
 	ExtensionIdentifierLargeBlob              ExtensionIdentifier = "largeBlob"
 	ExtensionIdentifierPayment                ExtensionIdentifier = "payment"
+)
+
+const (
+	PublicKeyCredentialHintSecurityKey  PublicKeyCredentialHint = "security-key"
+	PublicKeyCredentialHintClientDevice PublicKeyCredentialHint = "client-device"
+	PublicKeyCredentialHintHybrid       PublicKeyCredentialHint = "hybrid"
 )
 
 // PublicKeyCredentialRpEntity is used to supply additional Relying Party attributes when creating a new credential.
@@ -104,4 +116,17 @@ type PackedAttestationStatementFormat struct {
 type FIDOU2FAttestationStatementFormat struct {
 	X509Chain [][]byte `cbor:"x5c"`
 	Signature []byte   `cbor:"sig"`
+}
+
+// TPMAttestationStatementFormat is generally used by authenticators that use a Trusted Platform Module
+// as their cryptographic engine.
+// https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
+type TPMAttestationStatementFormat struct {
+	Version   string   `cbor:"ver"`
+	Algorithm key.Alg  `cbor:"alg"`
+	X509Chain [][]byte `cbor:"x5c"`
+	AIKCert   []byte   `cbor:"aikCert"`
+	Signature []byte   `cbor:"sig"`
+	CertInfo  []byte   `cbor:"certInfo"` // TPMS_ATTEST structure
+	PubArea   []byte   `cbor:"pubArea"`  // TPMT_PUBLIC structure
 }
