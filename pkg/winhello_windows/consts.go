@@ -141,7 +141,7 @@ type AuthenticatorGetAssertionOptions struct {
 	CancellationID               *windows.GUID
 	CredentialLargeBlobOperation WinHelloCredentialLargeBlobOperation
 	CredentialLargeBlob          []byte
-	HMACSecretSaltValues         []*ctaptypes.HMACSecret
+	HMACSecretSaltValues         *webauthntypes.AuthenticationExtensionsPRFInputs
 	BrowserInPrivateMode         bool
 	AutoFill                     bool
 	JsonExt                      []byte

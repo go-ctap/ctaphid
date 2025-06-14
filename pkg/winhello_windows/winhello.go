@@ -3,6 +3,7 @@ package winhello_windows
 
 import "C"
 import (
+	"encoding/base64"
 	"errors"
 	"unsafe"
 
@@ -114,10 +115,6 @@ func GetAssertion(
 		opts.PbU2fAppId = &t
 	}
 
-	// TODO dunno what to do here rn
-	if winHelloOpts.HMACSecretSaltValues != nil {
-	}
-
 	if winHelloOpts.CredentialHints != nil {
 		credHints := make([]*uint16, len(winHelloOpts.CredentialHints))
 		for i, hint := range winHelloOpts.CredentialHints {
@@ -128,29 +125,54 @@ func GetAssertion(
 		opts.PpwszCredentialHints = unsafe.SliceData(credHints)
 	}
 
+	// TODO
 	if winHelloOpts.Extensions != nil {
-		var exts []_WEBAUTHN_EXTENSION
+		/*var exts []_WEBAUTHN_EXTENSION
 		for name, value := range winHelloOpts.Extensions {
 			ext := _WEBAUTHN_EXTENSION{
 				PwszExtensionIdentifier: windows.StringToUTF16Ptr(string(name)),
-			}
-
-			switch name {
-			case webauthntypes.ExtensionIdentifierCredentialBlob:
-				v, ok := value.(bool)
-				if !ok {
-					continue
-				}
-
-				credBlob := boolToInt32(v)
-				ext.CbExtension = uint32(unsafe.Sizeof(credBlob))
-				ext.PvExtension = (*byte)(unsafe.Pointer(&credBlob))
-			default:
-				continue
+				CbExtension:             uint32(unsafe.Sizeof(value)),
+				PvExtension:             (*byte)(unsafe.Pointer(&value)),
 			}
 
 			exts = append(exts, ext)
 		}
+
+		opts.Extensions.CExtensions = uint32(len(exts))
+		opts.Extensions.PExtensions = unsafe.SliceData(exts)*/
+	}
+
+	if winHelloOpts.HMACSecretSaltValues != nil {
+		opts.PHmacSecretSaltValues = new(_WEBAUTHN_HMAC_SECRET_SALT_VALUES)
+		opts.PHmacSecretSaltValues.PGlobalHmacSalt = &_WEBAUTHN_HMAC_SECRET_SALT{
+			CbFirst:  uint32(len(winHelloOpts.HMACSecretSaltValues.Eval.First)),
+			PbFirst:  unsafe.SliceData(winHelloOpts.HMACSecretSaltValues.Eval.First),
+			CbSecond: uint32(len(winHelloOpts.HMACSecretSaltValues.Eval.Second)),
+			PbSecond: unsafe.SliceData(winHelloOpts.HMACSecretSaltValues.Eval.Second),
+		}
+
+		var credWithHMACSecretSaltList []_WEBAUTHN_CRED_WITH_HMAC_SECRET_SALT
+		for credIDStr, values := range winHelloOpts.HMACSecretSaltValues.EvalByCredential {
+			credID, err := base64.URLEncoding.DecodeString(credIDStr)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			credWithHMACSecretSaltList = append(credWithHMACSecretSaltList, _WEBAUTHN_CRED_WITH_HMAC_SECRET_SALT{
+				CbCredID: uint32(len(credID)),
+				PbCredID: unsafe.SliceData(credID),
+				PHmacSecretSalt: &_WEBAUTHN_HMAC_SECRET_SALT{
+					CbFirst:  uint32(len(values.First)),
+					PbFirst:  unsafe.SliceData(values.First),
+					CbSecond: uint32(len(values.Second)),
+					PbSecond: unsafe.SliceData(values.Second),
+				},
+			})
+		}
+
+		opts.PHmacSecretSaltValues.CCredWithHmacSecretSaltList = uint32(len(credWithHMACSecretSaltList))
+		opts.PHmacSecretSaltValues.PCredWithHmacSecretSaltList = unsafe.SliceData(credWithHMACSecretSaltList)
+		//opts.DwFlags |= WinHelloAuthenticatorHMACSecretValuesFlag
 	}
 
 	assertionPtr := new(_WEBAUTHN_ASSERTION)
@@ -260,7 +282,6 @@ func MakeCredential(
 	}
 
 	if winHelloOpts.PPRFGlobalEval != nil {
-		opts.DwFlags |= WinHelloAuthenticatorHMACSecretValuesFlag
 		opts.PPRFGlobalEval = &_WEBAUTHN_HMAC_SECRET_SALT{
 			CbFirst:  uint32(len(winHelloOpts.PPRFGlobalEval.First)),
 			PbFirst:  unsafe.SliceData(winHelloOpts.PPRFGlobalEval.First),
@@ -329,6 +350,9 @@ func MakeCredential(
 
 			exts = append(exts, ext)
 		}
+
+		opts.Extensions.CExtensions = uint32(len(exts))
+		opts.Extensions.PExtensions = unsafe.SliceData(exts)
 	}
 
 	credAttestationPtr := new(_WEBAUTHN_CREDENTIAL_ATTESTATION)
