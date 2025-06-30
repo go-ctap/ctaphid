@@ -41,6 +41,20 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - Modern Go design, making use of language features like iterators.
 - `cgo` is currently used for HID transport, but FIDO2 protocol logic is pure Go.
 - Windows Hello initial support. Works completely without `cgo` (plain syscalls).
+- Windows Hello requires a window handle (hWnd) to work, `hiddenwindow` package allows making
+  one without going into hassle with Windows API.
+
+  ```go
+  wnd, err := hiddenwindow.New(slog.Default(), "Windows Hello Test")
+  if err != nil {
+  	panic(err)
+  }
+  defer wnd.Close()
+
+  assertion, err := winhello.GetAssertion(
+  	wnd.WindowHandle(),
+  	// ...
+  ```
 
 ## Feature Matrix
 
