@@ -1,6 +1,7 @@
 package winhello_windows
 
 import (
+	"bytes"
 	"time"
 	"unsafe"
 
@@ -157,7 +158,7 @@ func (a *_WEBAUTHN_ASSERTION) ToGetAssertionResponse() (
 	*WinHelloGetAssertionResponse,
 	error,
 ) {
-	authDataRaw := unsafe.Slice(a.PbAuthenticatorData, a.CbAuthenticatorData)
+	authDataRaw := bytes.Clone(unsafe.Slice(a.PbAuthenticatorData, a.CbAuthenticatorData))
 	authData, err := ctaptypes.ParseGetAssertionAuthData(authDataRaw)
 	if err != nil {
 		return nil, err
@@ -166,14 +167,14 @@ func (a *_WEBAUTHN_ASSERTION) ToGetAssertionResponse() (
 	resp := &ctaptypes.AuthenticatorGetAssertionResponse{
 		Credential: webauthntypes.PublicKeyCredentialDescriptor{
 			Type: webauthntypes.PublicKeyCredentialType(windows.UTF16PtrToString(a.Credential.PwszCredentialType)),
-			ID:   unsafe.Slice(a.Credential.PbId, a.Credential.CbId),
+			ID:   bytes.Clone(unsafe.Slice(a.Credential.PbId, a.Credential.CbId)),
 		},
 		AuthData:    authData,
 		AuthDataRaw: authDataRaw,
-		Signature:   unsafe.Slice(a.PbSignature, a.CbSignature),
+		Signature:   bytes.Clone(unsafe.Slice(a.PbSignature, a.CbSignature)),
 	}
 
-	userID := unsafe.Slice(a.PbUserId, a.CbUserId)
+	userID := bytes.Clone(unsafe.Slice(a.PbUserId, a.CbUserId))
 	if userID != nil && len(userID) > 0 {
 		resp.User = &webauthntypes.PublicKeyCredentialUserEntity{
 			ID: userID,
@@ -182,19 +183,19 @@ func (a *_WEBAUTHN_ASSERTION) ToGetAssertionResponse() (
 
 	winHelloResp := &WinHelloGetAssertionResponse{
 		AuthenticatorGetAssertionResponse: resp,
-		CredLargeBlob:                     unsafe.Slice(a.PbCredLargeBlob, a.CbCredLargeBlob),
+		CredLargeBlob:                     bytes.Clone(unsafe.Slice(a.PbCredLargeBlob, a.CbCredLargeBlob)),
 		CredLargeBlobStatus:               WinHelloCredentialLargeBlobStatus(a.DwCredLargeBlobStatus),
 		UsedTransport:                     flagsToTransports(a.DwUsedTransport),
 	}
 
 	if a.PHmacSecret != nil {
 		winHelloResp.hmacSecret = &webauthntypes.AuthenticationExtensionsPRFValues{
-			First:  unsafe.Slice(a.PHmacSecret.PbFirst, a.PHmacSecret.CbFirst),
-			Second: unsafe.Slice(a.PHmacSecret.PbSecond, a.PHmacSecret.CbSecond),
+			First:  bytes.Clone(unsafe.Slice(a.PHmacSecret.PbFirst, a.PHmacSecret.CbFirst)),
+			Second: bytes.Clone(unsafe.Slice(a.PHmacSecret.PbSecond, a.PHmacSecret.CbSecond)),
 		}
 	}
 
-	unsignedExtensionOutputsRaw := unsafe.Slice(a.PbUnsignedExtensionOutputs, a.CbUnsignedExtensionOutputs)
+	unsignedExtensionOutputsRaw := bytes.Clone(unsafe.Slice(a.PbUnsignedExtensionOutputs, a.CbUnsignedExtensionOutputs))
 	if unsignedExtensionOutputsRaw != nil && len(unsignedExtensionOutputsRaw) > 0 {
 		if err := cbor.Unmarshal(unsignedExtensionOutputsRaw, &resp.UnsignedExtensionOutputs); err != nil {
 			return nil, err
@@ -232,7 +233,7 @@ type WinHelloMakeCredentialResponse struct {
 }
 
 func (a *_WEBAUTHN_CREDENTIAL_ATTESTATION) ToMakeCredentialResponse() (*WinHelloMakeCredentialResponse, error) {
-	authDataRaw := unsafe.Slice(a.PbAuthenticatorData, a.CbAuthenticatorData)
+	authDataRaw := bytes.Clone(unsafe.Slice(a.PbAuthenticatorData, a.CbAuthenticatorData))
 	authData, err := ctaptypes.ParseMakeCredentialAuthData(authDataRaw)
 	if err != nil {
 		return nil, err
@@ -244,7 +245,7 @@ func (a *_WEBAUTHN_CREDENTIAL_ATTESTATION) ToMakeCredentialResponse() (*WinHello
 		AuthDataRaw: authDataRaw,
 	}
 
-	attestationRaw := unsafe.Slice(a.PbAttestation, a.CbAttestation)
+	attestationRaw := bytes.Clone(unsafe.Slice(a.PbAttestation, a.CbAttestation))
 	if resp.Format != webauthntypes.AttestationStatementFormatIdentifierNone &&
 		attestationRaw != nil &&
 		len(attestationRaw) > 0 {
@@ -255,7 +256,7 @@ func (a *_WEBAUTHN_CREDENTIAL_ATTESTATION) ToMakeCredentialResponse() (*WinHello
 
 	winHelloResp := &WinHelloMakeCredentialResponse{
 		AuthenticatorMakeCredentialResponse: resp,
-		CredentialID:                        unsafe.Slice(a.PbCredentialId, a.CbCredentialId),
+		CredentialID:                        bytes.Clone(unsafe.Slice(a.PbCredentialId, a.CbCredentialId)),
 		UsedTransport:                       flagsToTransports(a.DwUsedTransport),
 		LargeBlobSupported:                  int32ToBool(a.BLargeBlobSupported),
 		ResidentKey:                         int32ToBool(a.BResidentKey),
@@ -265,12 +266,12 @@ func (a *_WEBAUTHN_CREDENTIAL_ATTESTATION) ToMakeCredentialResponse() (*WinHello
 
 	if a.PHmacSecret != nil {
 		winHelloResp.HMACSecret = &webauthntypes.AuthenticationExtensionsPRFValues{
-			First:  unsafe.Slice(a.PHmacSecret.PbFirst, a.PHmacSecret.CbFirst),
-			Second: unsafe.Slice(a.PHmacSecret.PbSecond, a.PHmacSecret.CbSecond),
+			First:  bytes.Clone(unsafe.Slice(a.PHmacSecret.PbFirst, a.PHmacSecret.CbFirst)),
+			Second: bytes.Clone(unsafe.Slice(a.PHmacSecret.PbSecond, a.PHmacSecret.CbSecond)),
 		}
 	}
 
-	unsignedExtensionOutputsRaw := unsafe.Slice(a.PbUnsignedExtensionOutputs, a.CbUnsignedExtensionOutputs)
+	unsignedExtensionOutputsRaw := bytes.Clone(unsafe.Slice(a.PbUnsignedExtensionOutputs, a.CbUnsignedExtensionOutputs))
 	if unsignedExtensionOutputsRaw != nil && len(unsignedExtensionOutputsRaw) > 0 {
 		if err := cbor.Unmarshal(unsignedExtensionOutputsRaw, &resp.UnsignedExtensionOutputs); err != nil {
 			return nil, err

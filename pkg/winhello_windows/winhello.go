@@ -3,9 +3,12 @@ package winhello_windows
 
 import "C"
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"unsafe"
 
 	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
@@ -221,6 +224,13 @@ func GetAssertion(
 	if windows.Handle(r1) != windows.S_OK {
 		return nil, windows.Errno(r1)
 	}
+
+	defer func() {
+		_, _, err := procWebAuthNFreeAssertion.Call(uintptr(unsafe.Pointer(assertionPtr)))
+		if err != nil && !errors.Is(err, windows.NTE_OP_OK) {
+			slog.Debug("Assertion free failed!", "err", err)
+		}
+	}()
 
 	resp, err := assertionPtr.ToGetAssertionResponse()
 	if err != nil {
@@ -492,6 +502,13 @@ func MakeCredential(
 		return nil, windows.Errno(r1)
 	}
 
+	defer func() {
+		_, _, err := procWebAuthNFreeCredentialAttestation.Call(uintptr(unsafe.Pointer(credAttestationPtr)))
+		if err != nil && !errors.Is(err, windows.NTE_OP_OK) {
+			slog.Debug("Credential Attestation free failed!", "err", err)
+		}
+	}()
+
 	resp, err := credAttestationPtr.ToMakeCredentialResponse()
 	if err != nil {
 		return nil, err
@@ -540,18 +557,18 @@ func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthn
 		})),
 		uintptr(unsafe.Pointer(&credDetailsListPtr)),
 	)
-	if !errors.Is(err, windows.NOERROR) {
+	if !errors.Is(err, windows.NTE_OP_OK) {
 		return nil, err
 	}
 	if windows.Handle(r1) != windows.S_OK {
 		return nil, windows.Errno(r1)
 	}
 
-	credListDetails := unsafe.Slice(credDetailsListPtr.PpCredentialDetails, credDetailsListPtr.CCredentialDetails)
+	credListDetails := slices.Clone(unsafe.Slice(credDetailsListPtr.PpCredentialDetails, credDetailsListPtr.CCredentialDetails))
 
 	list := make([]*WebAuthnCredentialDetails, len(credListDetails))
 	for i, cred := range credListDetails {
-		credID := unsafe.Slice(cred.PbCredentialID, cred.CbCredentialID)
+		credID := bytes.Clone(unsafe.Slice(cred.PbCredentialID, cred.CbCredentialID))
 
 		list[i] = &WebAuthnCredentialDetails{
 			CredentialID: credID,
@@ -560,7 +577,7 @@ func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthn
 				Name: windows.UTF16PtrToString(cred.PRpInformation.PwszName),
 			},
 			User: webauthntypes.PublicKeyCredentialUserEntity{
-				ID:          unsafe.Slice(cred.PUserInformation.PbId, cred.PUserInformation.CbId),
+				ID:          bytes.Clone(unsafe.Slice(cred.PUserInformation.PbId, cred.PUserInformation.CbId)),
 				DisplayName: windows.UTF16PtrToString(cred.PUserInformation.PwszDisplayName),
 				Name:        windows.UTF16PtrToString(cred.PUserInformation.PwszName),
 			},
@@ -571,7 +588,7 @@ func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthn
 
 	if _, _, err := procWebAuthNFreePlatformCredentialList.Call(
 		uintptr(unsafe.Pointer(credDetailsListPtr)),
-	); !errors.Is(err, windows.NOERROR) {
+	); !errors.Is(err, windows.NTE_OP_OK) {
 		return nil, err
 	}
 

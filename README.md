@@ -104,6 +104,22 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [x] PIN/UV Auth Protocol Two
 - [x] Encrypt/Decrypt using `LargeBlobsKey` extension
 
+### Windows Hello
+
+- [x] WebAuthNAuthenticatorGetAssertion
+  - [x] WebAuthNFreeAssertion
+- [x] WebAuthNAuthenticatorMakeCredential
+  - [x] WebAuthNFreeCredentialAttestation
+- [ ] WebAuthNCancelCurrentOperation
+- [ ] WebAuthNDeletePlatformCredential
+- [x] WebAuthNGetApiVersionNumber
+- [ ] WebAuthNGetCancellationId
+- [x] WebAuthNGetErrorName
+- [x] WebAuthNGetPlatformCredentialList
+  - [x] WebAuthNFreePlatformCredentialList
+- [ ] WebAuthNGetW3CExceptionDOMError
+- [ ] WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
+
 ## Planned Improvements
 
 - [ ] Better tests (using virtual authenticator?)
