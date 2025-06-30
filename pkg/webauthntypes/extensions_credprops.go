@@ -5,7 +5,7 @@ type CreateCredentialPropertiesInputs struct {
 }
 
 type CredentialPropertiesOutput struct {
-	RequireResidentKey bool `cbor:"rk"`
+	ResidentKey bool `cbor:"rk"`
 }
 type CreateCredentialPropertiesOutputs struct {
 	CredentialProperties CredentialPropertiesOutput `cbor:"credProps"`

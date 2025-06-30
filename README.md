@@ -5,6 +5,10 @@
 go-ctaphid is an idiomatic Go library implementing the CTAPHID transport protocol to interact with FIDO2 authenticators,
 featuring a clean, modern API with multiple layers of abstraction.
 
+## Work in progress ⚠️
+
+API may change during `v0.x`!
+
 ## Key Features and Architecture
 
 The library exposes several abstraction levels, allowing you to choose the API that best suits your needs:

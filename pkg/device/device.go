@@ -103,7 +103,7 @@ func (d *Device) Ping(ping []byte) error {
 }
 
 // Wink sends a blink command to the device to visually signal its presence to the user.
-// It uses the CTAPHID_WINK command which is optional and could be unsupported by some devices.
+// It uses the CTAPHID_WINK command, which is optional and could be unsupported by some devices.
 func (d *Device) Wink() error {
 	return ctaphid.Wink(d.device, d.cid)
 }
@@ -116,7 +116,18 @@ func (d *Device) Lock(seconds uint) error {
 }
 
 // MakeCredential initiates the process of creating a new credential on a device with specified parameters and options.
-func (d *Device) MakeCredential(pinUvAuthToken []byte, clientDataHash []byte, rp webauthntypes.PublicKeyCredentialRpEntity, user webauthntypes.PublicKeyCredentialUserEntity, pubKeyCredParams []webauthntypes.PublicKeyCredentialParameters, excludeList []webauthntypes.PublicKeyCredentialDescriptor, extInputs *webauthntypes.CreateAuthenticationExtensionsClientInputs, options map[ctaptypes.Option]bool, enterpriseAttestation uint, attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
+func (d *Device) MakeCredential(
+	pinUvAuthToken []byte,
+	clientDataHash []byte,
+	rp webauthntypes.PublicKeyCredentialRpEntity,
+	user webauthntypes.PublicKeyCredentialUserEntity,
+	pubKeyCredParams []webauthntypes.PublicKeyCredentialParameters,
+	excludeList []webauthntypes.PublicKeyCredentialDescriptor,
+	extInputs *webauthntypes.CreateAuthenticationExtensionsClientInputs,
+	options map[ctaptypes.Option]bool,
+	enterpriseAttestation uint,
+	attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier,
+) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
 	notRequired, ok := d.info.Options[ctaptypes.OptionMakeCredentialUvNotRequired]
 	if (!ok || !notRequired) && pinUvAuthToken == nil {
 		return nil, ErrPinUvAuthTokenRequired
@@ -350,7 +361,7 @@ func (d *Device) MakeCredential(pinUvAuthToken []byte, clientDataHash []byte, rp
 	if extInputs.CreateCredentialProtectionInputs != nil && extInputs.CredentialProperties {
 		extOutputs.CreateCredentialPropertiesOutputs = &webauthntypes.CreateCredentialPropertiesOutputs{
 			CredentialProperties: webauthntypes.CredentialPropertiesOutput{
-				RequireResidentKey: options[ctaptypes.OptionResidentKeys],
+				ResidentKey: options[ctaptypes.OptionResidentKeys],
 			},
 		}
 	}
@@ -432,6 +443,12 @@ func (d *Device) GetAssertion(
 
 		extensions := new(ctaptypes.GetExtensionInputs)
 
+		if extInputs.PRFInputs != nil && extInputs.GetHMACSecretInputs != nil {
+			yield(nil, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time"))
+			return
+		}
+
+		// hmac-secret
 		if extInputs.GetHMACSecretInputs != nil {
 			salt := slices.Concat(
 				extInputs.GetHMACSecretInputs.HMACGetSecret.Salt1,
@@ -479,9 +496,11 @@ func (d *Device) GetAssertion(
 				},
 			}
 		}
+
+		// prf
 		if extInputs.PRFInputs != nil {
 			if extInputs.PRF.EvalByCredential != nil && (allowList == nil || len(allowList) == 0) {
-				yield(nil, newErrorMessage(ErrNotSupported, "evalByCredential is not supported without allowList"))
+				yield(nil, newErrorMessage(ErrNotSupported, "evalByCredential works only in conjunction with allowList"))
 				return
 			}
 
@@ -571,6 +590,8 @@ func (d *Device) GetAssertion(
 				},
 			}
 		}
+
+		// credBlob
 		if extInputs.GetCredentialBlobInputs != nil {
 			extensions.GetCredBlobInput = &ctaptypes.GetCredBlobInput{
 				CredBlob: extInputs.GetCredBlob,
@@ -593,8 +614,7 @@ func (d *Device) GetAssertion(
 				return
 			}
 
-			extOutputs := new(webauthntypes.GetAuthenticationExtensionsClientOutputs)
-			assertion.ExtensionOutputs = extOutputs
+			assertion.ExtensionOutputs = new(webauthntypes.GetAuthenticationExtensionsClientOutputs)
 
 			// Yield assertions without extension data
 			if !assertion.AuthData.Flags.ExtensionDataIncluded() {
@@ -602,12 +622,14 @@ func (d *Device) GetAssertion(
 				return
 			}
 
+			// credBlob
 			if assertion.AuthData.Extensions.GetCredBlobOutput != nil {
-				extOutputs.GetCredentialBlobOutputs = &webauthntypes.GetCredentialBlobOutputs{
+				assertion.ExtensionOutputs.GetCredentialBlobOutputs = &webauthntypes.GetCredentialBlobOutputs{
 					GetCredBlob: assertion.AuthData.Extensions.GetCredBlobOutput.CredBlob,
 				}
 			}
 
+			// hmac-secret or prf
 			if assertion.AuthData.Extensions.GetHMACSecretOutput != nil {
 				salt, err := protocol.Decrypt(sharedSecret, assertion.AuthData.Extensions.HMACSecret)
 				if err != nil {
@@ -618,14 +640,14 @@ func (d *Device) GetAssertion(
 				switch len(salt) {
 				case 32:
 					if extInputs.GetHMACSecretInputs != nil {
-						extOutputs.GetHMACSecretOutputs = &webauthntypes.GetHMACSecretOutputs{
+						assertion.ExtensionOutputs.GetHMACSecretOutputs = &webauthntypes.GetHMACSecretOutputs{
 							HMACGetSecret: webauthntypes.HMACGetSecretOutput{
 								Output1: salt[:32],
 							},
 						}
 					}
 					if extInputs.PRFInputs != nil {
-						extOutputs.PRFOutputs = &webauthntypes.PRFOutputs{
+						assertion.ExtensionOutputs.PRFOutputs = &webauthntypes.PRFOutputs{
 							PRF: webauthntypes.AuthenticationExtensionsPRFOutputs{
 								Enabled: true,
 								Results: webauthntypes.AuthenticationExtensionsPRFValues{
@@ -636,7 +658,7 @@ func (d *Device) GetAssertion(
 					}
 				case 64:
 					if extInputs.GetHMACSecretInputs != nil {
-						extOutputs.GetHMACSecretOutputs = &webauthntypes.GetHMACSecretOutputs{
+						assertion.ExtensionOutputs.GetHMACSecretOutputs = &webauthntypes.GetHMACSecretOutputs{
 							HMACGetSecret: webauthntypes.HMACGetSecretOutput{
 								Output1: salt[:32],
 								Output2: salt[32:],
@@ -644,7 +666,7 @@ func (d *Device) GetAssertion(
 						}
 					}
 					if extInputs.PRFInputs != nil {
-						extOutputs.PRFOutputs = &webauthntypes.PRFOutputs{
+						assertion.ExtensionOutputs.PRFOutputs = &webauthntypes.PRFOutputs{
 							PRF: webauthntypes.AuthenticationExtensionsPRFOutputs{
 								Enabled: true,
 								Results: webauthntypes.AuthenticationExtensionsPRFValues{
