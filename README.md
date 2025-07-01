@@ -5,9 +5,8 @@
 go-ctaphid is an idiomatic Go library implementing the CTAPHID transport protocol to interact with FIDO2 authenticators,
 featuring a clean, modern API with multiple layers of abstraction.
 
-## Work in progress ⚠️
-
-API may change during `v0.x`!
+> [!WARNING]
+> Work in progress! API may change during `v0.x`!
 
 ## Key Features and Architecture
 
@@ -40,7 +39,7 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - Both low-level access and ergonomic, high-level APIs.
 - Modern Go design, making use of language features like iterators.
 - `cgo` is currently used for HID transport, but FIDO2 protocol logic is pure Go.
-- Windows Hello initial support. Works completely without `cgo` (plain syscalls).
+- Windows Hello initial support. `cgo`-free implementation (plain syscalls).
 - Windows Hello requires a window handle (hWnd) to work, `hiddenwindow` package allows making
   one without going into hassle with Windows API.
 
@@ -139,4 +138,4 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [ ] Better tests (using virtual authenticator?)
 - [ ] Extended "sugar" helpers for common use-cases.
 - [ ] Mobile platform compatibility (Android, iOS) and additional transport support (CTAPNFC, CTAPBLE?).
-- [ ] `cgo`-free version.
+- [ ] `cgo`-free version. See [go-hid](https://github.com/savely-krasovsky/go-hid).
