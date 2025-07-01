@@ -30,9 +30,7 @@ var (
 	procWebAuthNGetPlatformCredentialList                     = modWebAuthn.NewProc("WebAuthNGetPlatformCredentialList")
 	procWebAuthNGetW3CExceptionDOMError                       = modWebAuthn.NewProc("WebAuthNGetW3CExceptionDOMError")
 	procWebAuthNIsUserVerifyingPlatformAuthenticatorAvailable = modWebAuthn.NewProc("WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable")
-
-	apiVersionNumber = WebAuthNGetApiVersionNumber()
-	currVer          = availableVersions(apiVersionNumber)
+	currVer                                                   = availableVersions(APIVersionNumber())
 )
 
 type WebAuthnCredentialDetails struct {
@@ -206,7 +204,7 @@ func GetAssertion(
 
 	assertionPtr := new(_WEBAUTHN_ASSERTION)
 
-	r1, _, err := procWebAuthNAuthenticatorGetAssertion.Call(
+	r1, _, _ := procWebAuthNAuthenticatorGetAssertion.Call(
 		uintptr(hWnd),
 		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(rpID))),
 		uintptr(unsafe.Pointer(&_WEBAUTHN_CLIENT_DATA{
@@ -218,11 +216,8 @@ func GetAssertion(
 		uintptr(unsafe.Pointer(opts)),
 		uintptr(unsafe.Pointer(&assertionPtr)),
 	)
-	if !errors.Is(err, windows.NTE_OP_OK) {
-		return nil, err
-	}
-	if windows.Handle(r1) != windows.S_OK {
-		return nil, windows.Errno(r1)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return nil, windows.Errno(hr)
 	}
 
 	defer func() {
@@ -468,7 +463,7 @@ func MakeCredential(
 
 	credAttestationPtr := new(_WEBAUTHN_CREDENTIAL_ATTESTATION)
 
-	r1, _, err := procWebAuthNAuthenticatorMakeCredential.Call(
+	r1, _, _ := procWebAuthNAuthenticatorMakeCredential.Call(
 		uintptr(hWnd),
 		uintptr(unsafe.Pointer(&_WEBAUTHN_RP_ENTITY_INFORMATION{
 			DwVersion: currVer.rpEntityInformation,
@@ -495,11 +490,8 @@ func MakeCredential(
 		uintptr(unsafe.Pointer(opts)),
 		uintptr(unsafe.Pointer(&credAttestationPtr)),
 	)
-	if !errors.Is(err, windows.NTE_OP_OK) {
-		return nil, err
-	}
-	if windows.Handle(r1) != windows.S_OK {
-		return nil, windows.Errno(r1)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return nil, windows.Errno(hr)
 	}
 
 	defer func() {
@@ -541,6 +533,54 @@ func MakeCredential(
 	return resp, nil
 }
 
+func CancelCurrentOperation() (*windows.GUID, error) {
+	var cancellationIDPtr windows.GUID
+
+	r1, _, _ := procWebAuthNCancelCurrentOperation.Call(
+		uintptr(unsafe.Pointer(&cancellationIDPtr)),
+	)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return nil, windows.Errno(hr)
+	}
+
+	return &cancellationIDPtr, nil
+}
+
+func DeletePlatformCredential(credentialID []byte) error {
+	r1, _, _ := procWebAuthNDeletePlatformCredential.Call(
+		uintptr(len(credentialID)),
+		uintptr(unsafe.Pointer(&credentialID[0])),
+	)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return windows.Errno(hr)
+	}
+
+	return nil
+}
+
+func APIVersionNumber() uint32 {
+	r1, _, _ := procWebAuthNGetApiVersionNumber.Call()
+	return uint32(r1)
+}
+
+func CancellationID() (*windows.GUID, error) {
+	var cancellationIDPtr windows.GUID
+
+	r1, _, _ := procWebAuthNGetCancellationId.Call(
+		uintptr(unsafe.Pointer(&cancellationIDPtr)),
+	)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return nil, windows.Errno(hr)
+	}
+
+	return &cancellationIDPtr, nil
+}
+
+func ErrorName(hr windows.Handle) string {
+	r1, _, _ := procWebAuthNGetErrorName.Call(uintptr(hr))
+	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(r1)))
+}
+
 func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthnCredentialDetails, error) {
 	var rpIDPtr *uint16
 	if rpID != "" {
@@ -549,7 +589,7 @@ func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthn
 
 	credDetailsListPtr := new(_WEBAUTHN_CREDENTIAL_DETAILS_LIST)
 
-	r1, _, err := procWebAuthNGetPlatformCredentialList.Call(
+	r1, _, _ := procWebAuthNGetPlatformCredentialList.Call(
 		uintptr(unsafe.Pointer(&_WEBAUTHN_GET_CREDENTIALS_OPTIONS{
 			DwVersion:             currVer.getCredentialsOptions,
 			PwszRpId:              rpIDPtr,
@@ -557,11 +597,8 @@ func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthn
 		})),
 		uintptr(unsafe.Pointer(&credDetailsListPtr)),
 	)
-	if !errors.Is(err, windows.NTE_OP_OK) {
-		return nil, err
-	}
-	if windows.Handle(r1) != windows.S_OK {
-		return nil, windows.Errno(r1)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return nil, windows.Errno(hr)
 	}
 
 	credListDetails := slices.Clone(unsafe.Slice(credDetailsListPtr.PpCredentialDetails, credDetailsListPtr.CCredentialDetails))
@@ -595,12 +632,28 @@ func PlatformCredentialList(rpID string, browserInPrivateMode bool) ([]*WebAuthn
 	return list, nil
 }
 
-func WebAuthNGetApiVersionNumber() uint32 {
-	r1, _, _ := procWebAuthNGetApiVersionNumber.Call()
-	return uint32(r1)
+func W3CExceptionDOMError() (windows.Handle, error) {
+	var ret windows.Handle
+
+	r1, _, _ := procWebAuthNGetW3CExceptionDOMError.Call(
+		uintptr(unsafe.Pointer(&ret)),
+	)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return 0, windows.Errno(hr)
+	}
+
+	return ret, nil
 }
 
-func WebAuthNGetErrorName(hr windows.Handle) string {
-	r1, _, _ := procWebAuthNGetErrorName.Call(uintptr(hr))
-	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(r1)))
+func IsUserVerifyingPlatformAuthenticatorAvailable() (bool, error) {
+	var isAvailable bool
+
+	r1, _, _ := procWebAuthNIsUserVerifyingPlatformAuthenticatorAvailable.Call(
+		uintptr(unsafe.Pointer(&isAvailable)),
+	)
+	if hr := windows.Handle(r1); hr != windows.S_OK {
+		return false, windows.Errno(hr)
+	}
+
+	return isAvailable, nil
 }

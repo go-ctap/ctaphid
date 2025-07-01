@@ -118,7 +118,7 @@ func (d *Device) Lock(seconds uint) error {
 // MakeCredential initiates the process of creating a new credential on a device with specified parameters and options.
 func (d *Device) MakeCredential(
 	pinUvAuthToken []byte,
-	clientDataHash []byte,
+	clientData []byte,
 	rp webauthntypes.PublicKeyCredentialRpEntity,
 	user webauthntypes.PublicKeyCredentialUserEntity,
 	pubKeyCredParams []webauthntypes.PublicKeyCredentialParameters,
@@ -133,14 +133,6 @@ func (d *Device) MakeCredential(
 		return nil, ErrPinUvAuthTokenRequired
 	}
 
-	if extInputs.CreateHMACSecretMCInputs != nil && extInputs.PRFInputs != nil {
-		return nil, newErrorMessage(SyntaxError, "both prf and hmac-secret-mc are not supported")
-	}
-
-	if extInputs.LargeBlobInputs != nil {
-		return nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported right now")
-	}
-
 	var (
 		protocol     *crypto.PinUvAuthProtocol
 		sharedSecret []byte
@@ -148,6 +140,15 @@ func (d *Device) MakeCredential(
 
 	extensions := new(ctaptypes.CreateExtensionInputs)
 
+	if extInputs.LargeBlobInputs != nil {
+		return nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet")
+	}
+
+	if extInputs.CreateHMACSecretMCInputs != nil && extInputs.PRFInputs != nil {
+		return nil, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time")
+	}
+
+	// hmac-secret
 	if extInputs.CreateHMACSecretInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecret) {
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret extension")
@@ -158,6 +159,7 @@ func (d *Device) MakeCredential(
 		}
 	}
 
+	// hmac-secret-mc
 	if extInputs.CreateHMACSecretMCInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecretMC) {
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret-mc extension")
@@ -209,6 +211,7 @@ func (d *Device) MakeCredential(
 		}
 	}
 
+	// prf
 	if extInputs.PRFInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecretMC) {
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support prf extension during registration")
@@ -277,6 +280,7 @@ func (d *Device) MakeCredential(
 		}
 	}
 
+	// credProtection
 	if extInputs.CreateCredentialProtectionInputs != nil {
 		var credProtect int
 
@@ -301,6 +305,8 @@ func (d *Device) MakeCredential(
 			CredProtect: credProtect,
 		}
 	}
+
+	// credBlob
 	if extInputs.CreateCredentialBlobInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierCredentialBlob) {
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support credBlob extension")
@@ -317,6 +323,8 @@ func (d *Device) MakeCredential(
 			CredBlob: extInputs.CredBlob,
 		}
 	}
+
+	// minPinLength
 	if extInputs.CreateMinPinLengthInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierMinPinLength) {
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support minPinLength extension")
@@ -341,7 +349,7 @@ func (d *Device) MakeCredential(
 		d.cid,
 		d.info.PinUvAuthProtocols[0],
 		pinUvAuthToken,
-		clientDataHash,
+		clientData,
 		rp,
 		user,
 		pubKeyCredParams,
@@ -370,16 +378,21 @@ func (d *Device) MakeCredential(
 		return resp, nil
 	}
 
+	// credBlob
 	if resp.AuthData.Extensions.CreateCredBlobOutput != nil {
 		extOutputs.CreateCredentialBlobOutputs = &webauthntypes.CreateCredentialBlobOutputs{
 			CredBlob: resp.AuthData.Extensions.CreateCredBlobOutput.CredBlob,
 		}
 	}
+
+	// hmac-secret
 	if resp.AuthData.Extensions.CreateHMACSecretOutput != nil {
 		extOutputs.CreateHMACSecretOutputs = &webauthntypes.CreateHMACSecretOutputs{
 			HMACCreateSecret: resp.AuthData.Extensions.CreateHMACSecretOutput.HMACSecret,
 		}
 	}
+
+	// hmac-secret-mc (it needs tests, thought I cannot find any devices that support it yet)
 	if resp.AuthData.Extensions.CreateHMACSecretMCOutput != nil {
 		salt, err := protocol.Decrypt(sharedSecret, resp.AuthData.Extensions.CreateHMACSecretMCOutput.HMACSecret)
 		if err != nil {
@@ -420,28 +433,23 @@ func (d *Device) MakeCredential(
 func (d *Device) GetAssertion(
 	pinUvAuthToken []byte,
 	rpID string,
-	clientDataHash []byte,
+	clientData []byte,
 	allowList []webauthntypes.PublicKeyCredentialDescriptor,
 	extInputs *webauthntypes.GetAuthenticationExtensionsClientInputs,
 	options map[ctaptypes.Option]bool,
 ) func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
 	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
-		if extInputs.GetHMACSecretInputs != nil && extInputs.PRFInputs != nil {
-			yield(nil, newErrorMessage(SyntaxError, "both prf and hmac-secret are not supported"))
-			return
-		}
-
-		if extInputs.LargeBlobInputs != nil {
-			yield(nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported right now"))
-			return
-		}
-
 		var (
 			protocol     *crypto.PinUvAuthProtocol
 			sharedSecret []byte
 		)
 
 		extensions := new(ctaptypes.GetExtensionInputs)
+
+		if extInputs.LargeBlobInputs != nil {
+			yield(nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet"))
+			return
+		}
 
 		if extInputs.PRFInputs != nil && extInputs.GetHMACSecretInputs != nil {
 			yield(nil, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time"))
@@ -604,7 +612,7 @@ func (d *Device) GetAssertion(
 			d.info.PinUvAuthProtocols[0],
 			pinUvAuthToken,
 			rpID,
-			clientDataHash,
+			clientData,
 			allowList,
 			extensions,
 			options,

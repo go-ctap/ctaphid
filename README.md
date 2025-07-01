@@ -124,15 +124,15 @@ The library exposes several abstraction levels, allowing you to choose the API t
   - [x] WebAuthNFreeAssertion
 - [x] WebAuthNAuthenticatorMakeCredential
   - [x] WebAuthNFreeCredentialAttestation
-- [ ] WebAuthNCancelCurrentOperation
-- [ ] WebAuthNDeletePlatformCredential
+- [x] WebAuthNCancelCurrentOperation
+- [x] WebAuthNDeletePlatformCredential
 - [x] WebAuthNGetApiVersionNumber
-- [ ] WebAuthNGetCancellationId
+- [x] WebAuthNGetCancellationId
 - [x] WebAuthNGetErrorName
 - [x] WebAuthNGetPlatformCredentialList
   - [x] WebAuthNFreePlatformCredentialList
-- [ ] WebAuthNGetW3CExceptionDOMError
-- [ ] WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
+- [x] WebAuthNGetW3CExceptionDOMError
+- [x] WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
 
 ## Planned Improvements
 

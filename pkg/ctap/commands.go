@@ -39,7 +39,7 @@ func (cl *Client) MakeCredential(
 	cid ctaphid.ChannelID,
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
-	clientDataHash []byte,
+	clientData []byte,
 	rp webauthntypes.PublicKeyCredentialRpEntity,
 	user webauthntypes.PublicKeyCredentialUserEntity,
 	pubKeyCredParams []webauthntypes.PublicKeyCredentialParameters,
@@ -49,6 +49,10 @@ func (cl *Client) MakeCredential(
 	enterpriseAttestation uint,
 	attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier,
 ) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
+	hasher := sha256.New()
+	hasher.Write(clientData)
+	clientDataHash := hasher.Sum(nil)
+
 	req := &ctaptypes.AuthenticatorMakeCredentialRequest{
 		ClientDataHash:               clientDataHash,
 		RP:                           rp,
@@ -102,12 +106,16 @@ func (cl *Client) GetAssertion(
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
 	rpID string,
-	clientDataHash []byte,
+	clientData []byte,
 	allowList []webauthntypes.PublicKeyCredentialDescriptor,
 	extensions *ctaptypes.GetExtensionInputs,
 	options map[ctaptypes.Option]bool,
 ) func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
 	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
+		hasher := sha256.New()
+		hasher.Write(clientData)
+		clientDataHash := hasher.Sum(nil)
+
 		req := &ctaptypes.AuthenticatorGetAssertionRequest{
 			RPID:           rpID,
 			ClientDataHash: clientDataHash,
