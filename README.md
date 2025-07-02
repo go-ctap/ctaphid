@@ -9,6 +9,14 @@ featuring a clean, modern API with multiple layers of abstraction.
 > [!WARNING]
 > Work in progress! API may change during `v0.x`!
 
+## Current Status
+
+Library supports almost entire CTAP 2.2 specification, except few extensions which are not yet seen in the wild
+(`hmac-secret-mc`, dedicated `largeBlob`, not to be confused with `largeBlobKey` which is supported).
+
+My current priorities are to write better tests and replace [sstallion/go-hid](https://github.com/sstallion/go-hid)
+with the [own](https://github.com/savely-krasovsky/go-hid) `cgo`-free alternative.
+
 ## Key Features and Architecture
 
 The library exposes several abstraction levels, allowing you to choose the API that best suits your needs:
@@ -102,6 +110,8 @@ The library exposes several abstraction levels, allowing you to choose the API t
 
 ### Extensions
 
+#### CTAP
+
 - [x] credProtect
 - [x] credBlob
 - [x] largeBlobKey
@@ -111,6 +121,12 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [x] hmac-secret
 - [ ] hmac-secret-mc
 - [x] thirdPartyPayment
+
+#### WebAuhn
+
+- [x] credProps
+- [x] prf
+- [ ] largeBlob
 
 ### Crypto
 
@@ -145,5 +161,4 @@ For Linux systems, you'll need to install the following packages to build:
 
 - [ ] Better tests (using virtual authenticator?)
 - [ ] Extended "sugar" helpers for common use-cases.
-- [ ] Mobile platform compatibility (Android, iOS) and additional transport support (CTAPNFC, CTAPBLE?).
 - [ ] `cgo`-free version. See [go-hid](https://github.com/savely-krasovsky/go-hid).
