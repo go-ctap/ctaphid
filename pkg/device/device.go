@@ -37,7 +37,10 @@ type Device struct {
 
 type CtxKey = string
 
-const CtxKeyUseNamedPipe CtxKey = "useNamedPipe"
+const (
+	CtxKeyUseNamedPipe  CtxKey = "useNamedPipe"
+	CtxKeyUseCgoFreeHID CtxKey = "useCgoFreeHid"
+)
 
 // New creates a new Device instance from a given HID path.
 // It also initializes a new underlying CTAP2 client with the provided options.
@@ -45,6 +48,7 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	oo := options.NewOptions(opts...)
 
 	ctx := context.WithValue(oo.Context, CtxKeyUseNamedPipe, oo.UseNamedPipe)
+	ctx = context.WithValue(ctx, CtxKeyUseCgoFreeHID, oo.UseCgoFreeHID)
 	dev, err := OpenPath(ctx, path)
 	if err != nil {
 		return nil, err

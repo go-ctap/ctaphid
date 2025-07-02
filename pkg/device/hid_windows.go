@@ -10,11 +10,11 @@ import (
 	"github.com/sstallion/go-hid"
 
 	"github.com/savely-krasovsky/go-ctaphid/pkg/hidproxy"
+	cgofreehid "github.com/savely-krasovsky/go-hid"
 )
 
 func Enumerate(ctx context.Context, vid, pid uint16, enumFn hid.EnumFunc) error {
-	v := ctx.Value(CtxKeyUseNamedPipe)
-	if v != nil {
+	if v := ctx.Value(CtxKeyUseNamedPipe); v != nil {
 		useNamedPipe, ok := v.(bool)
 		if ok && useNamedPipe {
 			dev, err := winio.DialPipeContext(ctx, hidproxy.NamedPipePath)
@@ -49,12 +49,34 @@ func Enumerate(ctx context.Context, vid, pid uint16, enumFn hid.EnumFunc) error 
 		}
 	}
 
+	if v := ctx.Value(CtxKeyUseCgoFreeHID); v != nil {
+		useCgoFreeHID, ok := v.(bool)
+		if ok && useCgoFreeHID {
+			for devInfo, err := range cgofreehid.Enumerate() {
+				if err != nil {
+					return err
+				}
+
+				if err := enumFn(&hid.DeviceInfo{
+					Path:       devInfo.Path,
+					VendorID:   devInfo.VendorID,
+					ProductID:  devInfo.ProductID,
+					MfrStr:     devInfo.MfrStr,
+					ProductStr: devInfo.ProductStr,
+					UsagePage:  devInfo.UsagePage,
+					Usage:      devInfo.Usage,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
 	return hid.Enumerate(vid, pid, enumFn)
 }
 
 func OpenPath(ctx context.Context, path string) (dev io.ReadWriteCloser, err error) {
-	v := ctx.Value(CtxKeyUseNamedPipe)
-	if v != nil {
+	if v := ctx.Value(CtxKeyUseNamedPipe); v != nil {
 		useNamedPipe, ok := v.(bool)
 		if ok && useNamedPipe {
 			dev, err := winio.DialPipeContext(ctx, hidproxy.NamedPipePath)
@@ -72,6 +94,13 @@ func OpenPath(ctx context.Context, path string) (dev io.ReadWriteCloser, err err
 			}
 
 			return dev, nil
+		}
+	}
+
+	if v := ctx.Value(CtxKeyUseCgoFreeHID); v != nil {
+		useCgoFreeHID, ok := v.(bool)
+		if ok && useCgoFreeHID {
+			return cgofreehid.OpenPath(path)
 		}
 	}
 
