@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"slices"
 
 	"github.com/fxamacker/cbor/v2"
@@ -437,7 +438,7 @@ func (d *Device) GetAssertion(
 	allowList []webauthntypes.PublicKeyCredentialDescriptor,
 	extInputs *webauthntypes.GetAuthenticationExtensionsClientInputs,
 	options map[ctaptypes.Option]bool,
-) func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
+) iter.Seq2[*ctaptypes.AuthenticatorGetAssertionResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
 		var (
 			protocol     *crypto.PinUvAuthProtocol
@@ -791,11 +792,10 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 		)
 	}
 
-	uvBioEnroll, ok := d.info.Options[ctaptypes.OptionUvBioEnroll]
-	if (!ok || !uvBioEnroll) && permission&ctaptypes.PermissionBioEnrollment != 0 {
+	if _, ok := d.info.Options[ctaptypes.OptionBioEnroll]; !ok && permission&ctaptypes.PermissionBioEnrollment != 0 {
 		return nil, newErrorMessage(
 			ErrNotSupported,
-			"you cannot set be BioEnrollment permission if device doesn't support uvBioEnroll option",
+			"you cannot set be BioEnrollment permission if device doesn't support bioEnroll option",
 		)
 	}
 
@@ -885,6 +885,172 @@ func (d *Device) Reset() error {
 	return ctap.Reset(d.device, d.cid)
 }
 
+// GetBioModality returns bio modality of authenticator.
+// Currently, only fingerprint modality is defined in the FIDO 2.2 specification.
+func (d *Device) GetBioModality() (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.GetBioModality(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+	)
+}
+
+// GetFingerprintSensorInfo returns three properties:
+//
+//		FingerprintKind: For touch type fingerprints, its value is 1. For swipe type fingerprints, its value is 2.
+//		MaxCaptureSamplesRequiredForEnroll: Indicates the maximum good samples required for enrollment.
+//	 	MaxTemplateFriendlyName: Indicates the maximum number of bytes the authenticator will accept as a templateFriendlyName.
+func (d *Device) GetFingerprintSensorInfo() (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.GetFingerprintSensorInfo(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+	)
+}
+
+// BeginEnroll begins a fingerprint enrollment process and returns TemplateID, LastEnrollSampleStatus,
+// and RemainingSamples properties. Use those properties to continue to capture the next samples or cancel it.
+func (d *Device) BeginEnroll(
+	pinUvAuthToken []byte,
+	timeoutMilliseconds uint,
+) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.BeginEnroll(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+		d.info.PinUvAuthProtocols[0],
+		pinUvAuthToken,
+		timeoutMilliseconds,
+	)
+}
+
+// EnrollCaptureNextSample continues capturing samples from an already started enrollment process.
+func (d *Device) EnrollCaptureNextSample(
+	pinUvAuthToken []byte,
+	templateID []byte,
+	timeoutMilliseconds uint,
+) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.EnrollCaptureNextSample(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+		d.info.PinUvAuthProtocols[0],
+		pinUvAuthToken,
+		templateID,
+		timeoutMilliseconds,
+	)
+}
+
+// CancelCurrentEnrollment cancels a current enrollment process.
+func (d *Device) CancelCurrentEnrollment() error {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.CancelCurrentEnrollment(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+	)
+}
+
+// EnumerateEnrollments enumerates enrollments by returning TemplateInfos property with an array of TemplateInfo
+// for all the enrollments available on the authenticator.
+func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.EnumerateEnrollments(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+		d.info.PinUvAuthProtocols[0],
+		pinUvAuthToken,
+	)
+}
+
+// SetFriendlyName allows renaming/setting of a friendly fingerprint name.
+func (d *Device) SetFriendlyName(pinUvAuthToken []byte, templateID []byte, friendlyName string) error {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.SetFriendlyName(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+		d.info.PinUvAuthProtocols[0],
+		pinUvAuthToken,
+		templateID,
+		friendlyName,
+	)
+}
+
+// RemoveEnrollment removes existing enrollment.
+func (d *Device) RemoveEnrollment(pinUvAuthToken []byte, templateID []byte) error {
+	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
+	if d.info.Versions.IsPreviewOnly() {
+		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
+	}
+	if !ok || !bioEnroll {
+		return newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+	}
+
+	return d.ctapClient.RemoveEnrollment(
+		d.device,
+		d.cid,
+		d.info.Versions.IsPreviewOnly(),
+		d.info.PinUvAuthProtocols[0],
+		pinUvAuthToken,
+		templateID,
+	)
+}
+
 // GetCredsMetadata retrieves credential management metadata if the device supports it.
 // Mainly ExistingResidentCredentialsCount and MaxPossibleRemainingResidentCredentialsCount.
 func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.AuthenticatorCredentialManagementResponse, error) {
@@ -908,7 +1074,7 @@ func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.Authenticat
 // EnumerateRPs provides a generator function to iterate over Relying Parties stored on the device.
 // It utilizes the Credential Management extension and yields results via a callback function.
 // If the device does not support credential management, an error is yielded.
-func (d *Device) EnumerateRPs(pinUvAuthToken []byte) func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
+func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.AuthenticatorCredentialManagementResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
 		credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 		if d.info.Versions.IsPreviewOnly() {
@@ -935,7 +1101,7 @@ func (d *Device) EnumerateRPs(pinUvAuthToken []byte) func(yield func(*ctaptypes.
 // EnumerateCredentials provides a generator function to iterate over Credentials stored on the device
 // for the specified Relying Party. It utilizes the Credential Management extension and yields results
 // via a callback function. If the device does not support credential management, an error is yielded.
-func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
+func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) iter.Seq2[*ctaptypes.AuthenticatorCredentialManagementResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
 		credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 		if d.info.Versions.IsPreviewOnly() {
@@ -1136,12 +1302,28 @@ func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBl
 	return nil
 }
 
+// EnableEnterpriseAttestation enables enterprise attestation on the device if supported, using the provided token.
+func (d *Device) EnableEnterpriseAttestation(pinUvAuthToken []byte) error {
+	if authnrCfg, ok := d.info.Options[ctaptypes.OptionAuthenticatorConfig]; !ok || !authnrCfg {
+		return newErrorMessage(ErrNotSupported, "device doesn't support authnrCfg")
+	}
+	if _, ok := d.info.Options[ctaptypes.OptionEnterpriseAttestation]; !ok {
+		return newErrorMessage(ErrNotSupported, "device doesn't support ep")
+	}
+
+	return d.ctapClient.EnableEnterpriseAttestation(
+		d.device,
+		d.cid,
+		d.info.PinUvAuthProtocols[0],
+		pinUvAuthToken,
+	)
+}
+
 // ToggleAlwaysUV toggles the always UV (User Verification) setting on the device if supported, using the provided token.
 func (d *Device) ToggleAlwaysUV(pinUvAuthToken []byte) error {
 	if authnrCfg, ok := d.info.Options[ctaptypes.OptionAuthenticatorConfig]; !ok || !authnrCfg {
 		return newErrorMessage(ErrNotSupported, "device doesn't support authnrCfg")
 	}
-
 	if _, ok := d.info.Options[ctaptypes.OptionAlwaysUv]; !ok {
 		return newErrorMessage(ErrNotSupported, "device doesn't support alwaysUv")
 	}

@@ -1,4 +1,4 @@
-//go:generate stringer -type=Command,ClientPINSubCommand,BioEnrollmentSubCommand,CredentialManagementSubCommand,ConfigSubCommand,Permission -output=consts_string.go
+//go:generate stringer -type=Command,ClientPINSubCommand,BioEnrollmentSubCommand,LastEnrollSampleStatus,CredentialManagementSubCommand,ConfigSubCommand,Permission -output=consts_string.go
 package ctaptypes
 
 type Command byte
@@ -43,6 +43,32 @@ const (
 	BioEnrollmentSubCommandSetFriendlyName
 	BioEnrollmentSubCommandRemoveEnrollment
 	BioEnrollmentSubCommandGetFingerprintSensorInfo
+)
+
+type BioModality uint
+
+const (
+	BioModalityFingerprint BioModality = iota + 1
+)
+
+type LastEnrollSampleStatus uint
+
+const (
+	LastEnrollSampleStatusFingerprintGood LastEnrollSampleStatus = iota
+	LastEnrollSampleStatusFingerprintTooHigh
+	LastEnrollSampleStatusFingerprintTooLow
+	LastEnrollSampleStatusFingerprintTooLeft
+	LastEnrollSampleStatusFingerprintTooRight
+	LastEnrollSampleStatusFingerprintTooFast
+	LastEnrollSampleStatusFingerprintTooSlow
+	LastEnrollSampleStatusFingerprintPoorQuality
+	LastEnrollSampleStatusFingerprintTooSkewed
+	LastEnrollSampleStatusFingerprintTooShort
+	LastEnrollSampleStatusFingerprintMergeFailure
+	LastEnrollSampleStatusFingerprintExists
+	_
+	LastEnrollSampleStatusNoUserActivity
+	LastEnrollSampleStatusNoUserPresenceTransition
 )
 
 type CredentialManagementSubCommand byte

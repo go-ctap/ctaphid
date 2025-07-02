@@ -72,14 +72,14 @@ The library exposes several abstraction levels, allowing you to choose the API t
   - [x] getUVRetries
   - [x] getPinUvAuthTokenUsingPinWithPermissions
 - [x] Reset
-- [ ] BioEnrollment
-  - [ ] enrollBegin
-  - [ ] enrollCaptureNextSample
-  - [ ] cancelCurrentEnrollment
-  - [ ] enumerateEnrollments
-  - [ ] setFriendlyName
-  - [ ] removeEnrollment
-  - [ ] getFingerprintSensorInfo
+- [x] BioEnrollment
+  - [x] enrollBegin
+  - [x] enrollCaptureNextSample
+  - [x] cancelCurrentEnrollment
+  - [x] enumerateEnrollments
+  - [x] setFriendlyName
+  - [x] removeEnrollment
+  - [x] getFingerprintSensorInfo
 - [x] CredentialManagement
   - [x] getCredsMetadata
   - [x] enumerateRPsBegin / enumerateRPsGetNextRP
@@ -92,11 +92,11 @@ The library exposes several abstraction levels, allowing you to choose the API t
   - [x] raw set
   - [x] get serialized large-blob array
   - [x] set serialized large-blob array
-- [ ] Config
-  - [ ] enableEnterpriseAttestation
+- [x] Config
+  - [x] enableEnterpriseAttestation
   - [x] toggleAlwaysUv
   - [x] setMinPINLength
-- [ ] Prototype BioEnrollment
+- [x] Prototype BioEnrollment
 - [x] Prototype CredentialManagement
 
 ### Extensions
