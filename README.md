@@ -134,6 +134,13 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [x] WebAuthNGetW3CExceptionDOMError
 - [x] WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
 
+## Build Dependencies
+
+### Linux
+For Linux systems, you'll need to install the following packages to build:
+- `libudev-dev`: udev device management library
+- `libusb-1.0-0-dev`: USB device access library
+
 ## Planned Improvements
 
 - [ ] Better tests (using virtual authenticator?)
