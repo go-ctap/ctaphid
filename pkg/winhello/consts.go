@@ -1,4 +1,6 @@
-package winhello_windows
+//go:build windows
+
+package winhello
 
 import (
 	"bytes"

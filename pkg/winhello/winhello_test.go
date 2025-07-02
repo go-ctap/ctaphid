@@ -1,13 +1,16 @@
-package winhello_windows
+//go:build windows
+
+package winhello
 
 import (
 	"encoding/base64"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/goforj/godump"
 	"github.com/ldclabs/cose/iana"
-	hiddenwindow "github.com/savely-krasovsky/go-ctaphid/pkg/hiddenwindow_windows"
+	"github.com/savely-krasovsky/go-ctaphid/pkg/hiddenwindow"
 	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,18 +21,31 @@ var (
 	hWnd windows.HWND
 )
 
-func TestMain(m *testing.M) {
-	wnd, err := hiddenwindow.New(slog.New(slog.DiscardHandler), "WebAuthn Tests")
-	if err != nil {
-		panic(err)
-	}
-	defer wnd.Close()
+func runWinHelloTests() bool {
+	env := os.Getenv("WINHELLO_TESTS")
+	return env == "true" || env == "1"
+}
 
-	hWnd = wnd.WindowHandle()
-	m.Run()
+func TestMain(m *testing.M) {
+	if !runWinHelloTests() {
+		m.Run()
+	} else {
+		wnd, err := hiddenwindow.New(slog.New(slog.DiscardHandler), "WebAuthn Tests")
+		if err != nil {
+			panic(err)
+		}
+		defer wnd.Close()
+
+		hWnd = wnd.WindowHandle()
+		m.Run()
+	}
 }
 
 func TestAuthenticatorMakePlatformCredential(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	credAttestation, err := MakeCredential(
 		hWnd,
 		[]byte("{}"),
@@ -69,6 +85,10 @@ func TestAuthenticatorMakePlatformCredential(t *testing.T) {
 }
 
 func TestGetPlatformAssertion(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	assertion, err := GetAssertion(
 		hWnd,
 		"example.org",
@@ -91,6 +111,10 @@ func TestGetPlatformAssertion(t *testing.T) {
 }
 
 func TestPlatformCredentialList(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	list, err := PlatformCredentialList("", false)
 	require.NoError(t, err)
 	require.NotEmpty(t, list)
@@ -101,6 +125,10 @@ func TestPlatformCredentialList(t *testing.T) {
 }
 
 func TestDeletePlatformCredential(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	list, err := PlatformCredentialList("example.org", false)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
@@ -112,6 +140,10 @@ func TestDeletePlatformCredential(t *testing.T) {
 }
 
 func TestIsUserVerifyingPlatformAuthenticatorAvailable(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	available, err := IsUserVerifyingPlatformAuthenticatorAvailable()
 	require.NoError(t, err)
 
@@ -120,6 +152,10 @@ func TestIsUserVerifyingPlatformAuthenticatorAvailable(t *testing.T) {
 
 // TestAuthenticatorMakeCrossPlatformCredential creates a non-residential credential to save space on authenticator.
 func TestAuthenticatorMakeCrossPlatformCredential(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	credAttestation, err := MakeCredential(
 		hWnd,
 		[]byte("{}"),
@@ -160,6 +196,10 @@ func TestAuthenticatorMakeCrossPlatformCredential(t *testing.T) {
 // TestAuthenticatorGetCrossPlatformAssertion uses previously created credential ID to test deterministic PRF output.
 // Value was compared with various
 func TestAuthenticatorGetCrossPlatformAssertion(t *testing.T) {
+	if !runWinHelloTests() {
+		t.Skip("Skipping test because WINHELLO_TESTS is not set")
+	}
+
 	credIDStr := "ruDDeY_rT2Jv25HOJCY5LhTUXlX1DrIaAYVTXrumUtU5qNvr9uo77UekHDMiu1TEIRgw20ptOx841RsVZl--iofFQXkc0vIZ0-gpXZtw5g138QI0a1d4WBQbF7F1PbpC"
 	credID, _ := base64.URLEncoding.DecodeString(credIDStr)
 

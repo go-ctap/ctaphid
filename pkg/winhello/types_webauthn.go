@@ -1,6 +1,6 @@
 //go:build ignore
 
-package winhello_windows
+package winhello
 
 /*
 //#cgo CFLAGS: -I${SRCDIR}

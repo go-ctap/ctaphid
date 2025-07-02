@@ -1,4 +1,4 @@
-package winhello_windows
+package winhello
 
 type currentVersion struct {
 	rpEntityInformation                uint32
