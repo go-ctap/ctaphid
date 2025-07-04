@@ -48,21 +48,6 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - Both low-level access and ergonomic, high-level APIs.
 - Modern Go design, making use of language features like iterators.
 - `cgo` is currently used for HID transport, but FIDO2 protocol logic is pure Go.
-- Windows Hello initial support. `cgo`-free implementation (plain syscalls).
-- Windows Hello requires a window handle (hWnd) to work, `hiddenwindow` package allows making
-  one without going into hassle with Windows API.
-
-  ```go
-  wnd, err := hiddenwindow.New(slog.Default(), "Windows Hello Test")
-  if err != nil {
-  	panic(err)
-  }
-  defer wnd.Close()
-
-  assertion, err := winhello.GetAssertion(
-  	wnd.WindowHandle(),
-  	// ...
-  ```
 
 ## Feature Matrix
 
@@ -133,22 +118,6 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [x] PIN/UV Auth Protocol One
 - [x] PIN/UV Auth Protocol Two
 - [x] Encrypt/Decrypt using `LargeBlobsKey` extension
-
-### Windows Hello
-
-- [x] WebAuthNAuthenticatorGetAssertion
-  - [x] WebAuthNFreeAssertion
-- [x] WebAuthNAuthenticatorMakeCredential
-  - [x] WebAuthNFreeCredentialAttestation
-- [x] WebAuthNCancelCurrentOperation
-- [x] WebAuthNDeletePlatformCredential
-- [x] WebAuthNGetApiVersionNumber
-- [x] WebAuthNGetCancellationId
-- [x] WebAuthNGetErrorName
-- [x] WebAuthNGetPlatformCredentialList
-  - [x] WebAuthNFreePlatformCredentialList
-- [x] WebAuthNGetW3CExceptionDOMError
-- [x] WebAuthNIsUserVerifyingPlatformAuthenticatorAvailable
 
 ## Build Dependencies
 
