@@ -1,6 +1,5 @@
 package device
 
-import "C"
 import (
 	"context"
 	"io"

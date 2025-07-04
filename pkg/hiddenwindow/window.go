@@ -2,7 +2,6 @@
 
 package hiddenwindow
 
-import "C"
 import (
 	_ "embed"
 	"errors"

@@ -3,7 +3,6 @@
 //go:generate powershell -Command "go tool cgo -godefs types_webauthn.go | Set-Content -Path ztypes_webauthn.go -Encoding UTF8"
 package winhello
 
-import "C"
 import (
 	"bytes"
 	"encoding/base64"
