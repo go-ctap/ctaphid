@@ -9,8 +9,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/sstallion/go-hid"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/hidproxy"
-	cgofreehid "github.com/savely-krasovsky/go-hid"
+	"github.com/go-ctap/ctaphid/pkg/hidproxy"
+	cgofreehid "github.com/go-ctap/hid"
 )
 
 func Enumerate(ctx context.Context, vid, pid uint16, enumFn hid.EnumFunc) error {

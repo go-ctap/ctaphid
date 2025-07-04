@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
 	"github.com/google/uuid"
 	"github.com/ldclabs/cose/key"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
 )
 
 func (f AuthDataFlag) UserPresent() bool {

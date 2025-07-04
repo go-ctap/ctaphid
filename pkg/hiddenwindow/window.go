@@ -32,6 +32,7 @@ var (
 	procGetModuleHandleW = kernel32.NewProc("GetModuleHandleW")
 	procGlobalAlloc      = kernel32.NewProc("GlobalAlloc")
 	procGlobalFree       = kernel32.NewProc("GlobalFree")
+	procGetConsoleWindow = kernel32.NewProc("GetConsoleWindow")
 )
 
 func getModuleHandle() (windows.Handle, error) {
@@ -521,4 +522,9 @@ func New(logger *slog.Logger, name string) (*HiddenWindow, error) {
 		hWnd:            res.hWnd,
 		closeSignalChan: closeSignalExternalChan,
 	}, res.err
+}
+
+func GetConsoleWindow() windows.HWND {
+	ret, _, _ := procGetConsoleWindow.Call()
+	return windows.HWND(ret)
 }

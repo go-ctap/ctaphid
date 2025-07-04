@@ -8,10 +8,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/go-ctap/ctaphid/pkg/hiddenwindow"
+	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
 	"github.com/goforj/godump"
 	"github.com/ldclabs/cose/iana"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/hiddenwindow"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/windows"

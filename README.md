@@ -1,7 +1,7 @@
 # go-ctaphid
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/savely-krasovsky/go-ctaphid.svg)](https://pkg.go.dev/github.com/savely-krasovsky/go-ctaphid)
-[![Go](https://github.com/savely-krasovsky/go-ctaphid/actions/workflows/go.yml/badge.svg)](https://github.com/savely-krasovsky/go-ctaphid/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/go-ctap/ctaphid.svg)](https://pkg.go.dev/github.com/go-ctap/ctaphid)
+[![Go](https://github.com/go-ctap/ctaphid/actions/workflows/go.yml/badge.svg)](https://github.com/go-ctap/ctaphid/actions/workflows/go.yml)
 
 go-ctaphid is an idiomatic Go library implementing the CTAPHID transport protocol to interact with FIDO2 authenticators,
 featuring a clean, modern API with multiple layers of abstraction.
@@ -15,7 +15,7 @@ Library supports almost entire CTAP 2.2 specification, except few extensions whi
 (`hmac-secret-mc`, dedicated `largeBlob`, not to be confused with `largeBlobKey` which is supported).
 
 My current priorities are to write better tests and replace [sstallion/go-hid](https://github.com/sstallion/go-hid)
-with the [own](https://github.com/savely-krasovsky/go-hid) `cgo`-free alternative.
+with the [own](https://github.com/go-ctap/hid) `cgo`-free alternative.
 
 ## Key Features and Architecture
 
@@ -161,4 +161,4 @@ For Linux systems, you'll need to install the following packages to build:
 
 - [ ] Better tests (using virtual authenticator?)
 - [ ] Extended "sugar" helpers for common use-cases.
-- [ ] `cgo`-free version. See [go-hid](https://github.com/savely-krasovsky/go-hid).
+- [ ] `cgo`-free version. See [go-hid](https://github.com/go-ctap/hid).

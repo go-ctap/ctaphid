@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/crypto/protocolone"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/crypto/protocoltwo"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
+	"github.com/go-ctap/ctaphid/pkg/crypto/protocolone"
+	"github.com/go-ctap/ctaphid/pkg/crypto/protocoltwo"
+	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
 
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"

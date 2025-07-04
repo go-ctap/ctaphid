@@ -1,8 +1,8 @@
 package ctaptypes
 
 import (
+	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
 	"github.com/ldclabs/cose/key"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
 )
 
 type AuthenticatorCredentialManagementRequest struct {

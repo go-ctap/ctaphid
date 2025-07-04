@@ -7,9 +7,9 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/device"
-	"github.com/savely-krasovsky/go-ctaphid/pkg/options"
+	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
+	"github.com/go-ctap/ctaphid/pkg/device"
+	"github.com/go-ctap/ctaphid/pkg/options"
 
 	"github.com/samber/mo"
 	"github.com/sstallion/go-hid"

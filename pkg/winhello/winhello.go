@@ -13,7 +13,7 @@ import (
 	"slices"
 	"unsafe"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
 	"golang.org/x/sys/windows"
 )
 

@@ -6,7 +6,7 @@ import (
 	"io"
 	"slices"
 
-	"github.com/savely-krasovsky/go-ctaphid/pkg/ctaptypes"
+	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
 )
 
 func CBOR(dev io.ReadWriter, cid ChannelID, data []byte) (*CBORResponse, error) {
