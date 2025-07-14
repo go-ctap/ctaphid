@@ -5,7 +5,7 @@ go 1.24
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/fxamacker/cbor/v2 v2.8.0
-	github.com/go-ctap/hid v0.1.1
+	github.com/go-ctap/hid v0.2.0
 	github.com/google/uuid v1.6.0
 	github.com/ldclabs/cose v1.3.2
 	github.com/samber/lo v1.51.0
