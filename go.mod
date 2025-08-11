@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/ldclabs/cose v1.3.2
 	github.com/samber/lo v1.51.0
-	github.com/samber/mo v1.14.0
+	github.com/samber/mo v1.15.0
 	github.com/sstallion/go-hid v0.15.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.40.0
