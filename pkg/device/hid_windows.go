@@ -1,4 +1,4 @@
-//go:build windows && !hid_cgo
+//go:build !hid_cgo
 
 package device
 

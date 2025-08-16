@@ -1,4 +1,4 @@
-//go:build (windows || linux) && hid_cgo
+//go:build hid_cgo || darwin
 
 package device
 
