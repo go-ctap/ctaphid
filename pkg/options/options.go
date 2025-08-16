@@ -8,12 +8,11 @@ import (
 )
 
 type Options struct {
-	Logger        *slog.Logger
-	EncMode       cbor.EncMode
-	Context       context.Context
-	Paths         []string
-	UseNamedPipe  bool
-	UseCgoFreeHID bool
+	Logger       *slog.Logger
+	EncMode      cbor.EncMode
+	Context      context.Context
+	Paths        []string
+	UseNamedPipe bool
 }
 
 type Option func(*Options)
@@ -45,12 +44,6 @@ func WithPaths(paths ...string) Option {
 func WithUseNamedPipes() Option {
 	return func(opts *Options) {
 		opts.UseNamedPipe = true
-	}
-}
-
-func WithUseCgoFreeHID() Option {
-	return func(opts *Options) {
-		opts.UseCgoFreeHID = true
 	}
 }
 

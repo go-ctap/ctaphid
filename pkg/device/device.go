@@ -16,7 +16,6 @@ import (
 	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
 	"github.com/ldclabs/cose/key"
 	"github.com/samber/lo"
-	"github.com/sstallion/go-hid"
 
 	"github.com/go-ctap/ctaphid/pkg/crypto"
 	"github.com/go-ctap/ctaphid/pkg/ctap"
@@ -38,8 +37,7 @@ type Device struct {
 type CtxKey = string
 
 const (
-	CtxKeyUseNamedPipe  CtxKey = "useNamedPipe"
-	CtxKeyUseCgoFreeHID CtxKey = "useCgoFreeHid"
+	CtxKeyUseNamedPipe CtxKey = "useNamedPipe"
 )
 
 // New creates a new Device instance from a given HID path.
@@ -48,7 +46,6 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	oo := options.NewOptions(opts...)
 
 	ctx := context.WithValue(oo.Context, CtxKeyUseNamedPipe, oo.UseNamedPipe)
-	ctx = context.WithValue(ctx, CtxKeyUseCgoFreeHID, oo.UseCgoFreeHID)
 	dev, err := OpenPath(ctx, path)
 	if err != nil {
 		return nil, err
@@ -89,7 +86,8 @@ func (d *Device) Close() error {
 	if err := d.device.Close(); err != nil {
 		return err
 	}
-	return hid.Exit()
+
+	return hidExit()
 }
 
 // Ping sends a ping message to the device and verifies the response matches the sent data.

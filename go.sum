@@ -4,10 +4,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=
 github.com/fxamacker/cbor/v2 v2.9.0/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
-github.com/go-ctap/hid v0.2.0 h1:yHBbriBIddhc0eUtjvS+MHVhuq51Tco7wZ5XxpxYFDk=
-github.com/go-ctap/hid v0.2.0/go.mod h1:GTZGG8VIRx5uM4nSNmKbRKnr02O1mtS6OZ9P0yeIz2A=
-github.com/goforj/godump v1.5.0 h1:QALI7uJkpiwAW3Anko+vOFQzLlWvB7YviYCJpE1sFIE=
-github.com/goforj/godump v1.5.0/go.mod h1:lCaXaxNTozTNAMJTPY91/ntMqw3JF8FOL93jCNKpNW0=
+github.com/go-ctap/hid v0.2.1 h1:eCMN///mX2cfCTdkpY/UwYSE03pHJ0kqINzZh879K4k=
+github.com/go-ctap/hid v0.2.1/go.mod h1:GTZGG8VIRx5uM4nSNmKbRKnr02O1mtS6OZ9P0yeIz2A=
+github.com/goforj/godump v1.6.0 h1:3Dn8gaw5Xxxefr1ezTGTWrTKSr3ihK+eJ2xzRUoFfHQ=
+github.com/goforj/godump v1.6.0/go.mod h1:/Vy+p50JtOkwsFN5dA1HQ7LS5gtPk3f61DaP4UR2o4s=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/ldclabs/cose v1.3.2 h1:9M5l1zTvOyZONRsNj2PWJjmLdRqkcrsp80tyuNkOHdE=

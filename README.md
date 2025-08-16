@@ -14,7 +14,7 @@ featuring a clean, modern API with multiple layers of abstraction.
 Library supports almost entire CTAP 2.2 specification, except few extensions which are not yet seen in the wild
 (`hmac-secret-mc`, dedicated `largeBlob`, not to be confused with `largeBlobKey` which is supported).
 
-My current priorities are to write better tests and replace [sstallion/go-hid](https://github.com/sstallion/go-hid)
+My current priorities are to write better tests and completely replace [sstallion/go-hid](https://github.com/sstallion/go-hid)
 with the [own](https://github.com/go-ctap/hid) `cgo`-free alternative.
 
 ## Key Features and Architecture
@@ -47,7 +47,7 @@ The library exposes several abstraction levels, allowing you to choose the API t
   Reset, CredentialManagement, and more.
 - Both low-level access and ergonomic, high-level APIs.
 - Modern Go design, making use of language features like iterators.
-- `cgo` is currently used for HID transport, but FIDO2 protocol logic is pure Go.
+- `cgo` is currently used only for macOS version (for HID transport), but FIDO2 protocol logic is pure Go.
 
 ## Feature Matrix
 
@@ -130,4 +130,4 @@ For Linux systems, you'll need to install the following packages to build:
 
 - [ ] Better tests (using virtual authenticator?)
 - [ ] Extended "sugar" helpers for common use-cases.
-- [ ] `cgo`-free version. See [go-hid](https://github.com/go-ctap/hid).
+- [ ] `cgo`-free version for macOS. See [go-hid](https://github.com/go-ctap/hid).

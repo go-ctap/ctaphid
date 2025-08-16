@@ -5,30 +5,30 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/samber/lo"
-
 	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
 	"github.com/go-ctap/ctaphid/pkg/device"
 	"github.com/go-ctap/ctaphid/pkg/options"
+	ghid "github.com/go-ctap/hid"
+	"github.com/samber/lo"
 
 	"github.com/samber/mo"
-	"github.com/sstallion/go-hid"
 )
 
-func EnumerateFIDODevices(opts ...options.Option) ([]*hid.DeviceInfo, error) {
+func EnumerateFIDODevices(opts ...options.Option) ([]*ghid.DeviceInfo, error) {
 	oo := options.NewOptions(opts...)
 
-	devInfos := make([]*hid.DeviceInfo, 0)
+	devInfos := make([]*ghid.DeviceInfo, 0)
 	ctx := context.WithValue(oo.Context, device.CtxKeyUseNamedPipe, oo.UseNamedPipe)
-	if err := device.Enumerate(ctx, hid.VendorIDAny, hid.ProductIDAny, func(info *hid.DeviceInfo) error {
-		if info.UsagePage != 0xf1d0 || info.Usage != 0x01 {
-			return nil
+	for devInfo, err := range device.Enumerate(ctx) {
+		if err != nil {
+			return nil, err
 		}
 
-		devInfos = append(devInfos, info)
-		return nil
-	}); err != nil {
-		return nil, err
+		if devInfo.UsagePage != 0xf1d0 || devInfo.Usage != 0x01 {
+			continue
+		}
+
+		devInfos = append(devInfos, devInfo)
 	}
 
 	return devInfos, nil
@@ -44,7 +44,7 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 		if err != nil {
 			return nil, err
 		}
-		oo.Paths = lo.Map[*hid.DeviceInfo, string](devInfos, func(devInfo *hid.DeviceInfo, _ int) string {
+		oo.Paths = lo.Map[*ghid.DeviceInfo, string](devInfos, func(devInfo *ghid.DeviceInfo, _ int) string {
 			return devInfo.Path
 		})
 	}
@@ -56,10 +56,12 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 	devices := make([]*device.Device, 0)
 
 	// Here we will receive either a device or an error from first success Selection() call.
-	selection := make(chan mo.Either[*device.Device, error])
+	selection := make(chan mo.Either[*device.Device, error], len(oo.Paths))
 
 	// WaitGroup allows us to wait for all Selection() calls to finish.
 	var wg sync.WaitGroup
+	// Return only first successful Selection() call.
+	var once sync.Once
 
 	// It will allow us to cancel all other active Selection() calls
 	ctx, cancel := context.WithCancel(context.Background())
@@ -80,18 +82,23 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 		}
 
 		wg.Add(1)
-		go func(dev *device.Device, ctx context.Context) {
+		go func(dev *device.Device) {
 			defer wg.Done()
 
+			// Selection() will block until ctx is canceled or a device is selected.
 			err := dev.Selection(ctx)
 
 			if !errors.Is(ctx.Err(), context.Canceled) {
-				if err != nil {
-					selection <- mo.Right[*device.Device, error](err)
-				}
-				selection <- mo.Left[*device.Device, error](dev)
+				once.Do(func() {
+					cancel()
+					if err != nil {
+						selection <- mo.Right[*device.Device, error](err)
+						return
+					}
+					selection <- mo.Left[*device.Device, error](dev)
+				})
 			}
-		}(dev, ctx)
+		}(dev)
 
 		devices = append(devices, dev)
 	}
@@ -100,14 +107,17 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 		return nil, errors.New("no supported devices found")
 	}
 
-	selectedDev, ok := (<-selection).Left()
+	wg.Wait()
+
+	sel := <-selection
+	err, ok := sel.Right()
 	if ok {
-		cancel()
-		wg.Wait()
+		return nil, err
 	}
+	selectedDev := sel.MustLeft()
 
 	for _, dev := range devices {
-		if ok && selectedDev.Path == dev.Path {
+		if selectedDev.Path == dev.Path {
 			continue
 		}
 
