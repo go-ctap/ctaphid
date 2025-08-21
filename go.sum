@@ -6,6 +6,8 @@ github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sa
 github.com/fxamacker/cbor/v2 v2.9.0/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/go-ctap/hid v0.2.1 h1:eCMN///mX2cfCTdkpY/UwYSE03pHJ0kqINzZh879K4k=
 github.com/go-ctap/hid v0.2.1/go.mod h1:GTZGG8VIRx5uM4nSNmKbRKnr02O1mtS6OZ9P0yeIz2A=
+github.com/go-ctap/hid v0.2.2 h1:t7bU2P/q1dzPoONVRvvqIGZxAqULjc4rpdEFaCR20Ng=
+github.com/go-ctap/hid v0.2.2/go.mod h1:GTZGG8VIRx5uM4nSNmKbRKnr02O1mtS6OZ9P0yeIz2A=
 github.com/goforj/godump v1.6.0 h1:3Dn8gaw5Xxxefr1ezTGTWrTKSr3ihK+eJ2xzRUoFfHQ=
 github.com/goforj/godump v1.6.0/go.mod h1:/Vy+p50JtOkwsFN5dA1HQ7LS5gtPk3f61DaP4UR2o4s=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=

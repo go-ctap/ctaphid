@@ -11,6 +11,7 @@ import (
 	"io"
 	"iter"
 	"slices"
+	"sync"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
@@ -32,6 +33,7 @@ type Device struct {
 	info       *ctaptypes.AuthenticatorGetInfoResponse
 	ctapClient *ctap.Client
 	encMode    cbor.EncMode
+	mu         sync.Mutex // global mutex to serialize requests to the device
 }
 
 type CtxKey = string
@@ -83,6 +85,9 @@ func New(path string, opts ...options.Option) (*Device, error) {
 
 // Close closes the underlying HID device.
 func (d *Device) Close() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if err := d.device.Close(); err != nil {
 		return err
 	}
@@ -93,6 +98,9 @@ func (d *Device) Close() error {
 // Ping sends a ping message to the device and verifies the response matches the sent data.
 // Returns an error on failure.
 func (d *Device) Ping(ping []byte) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	pong, err := ctaphid.Ping(d.device, d.cid, ping)
 	if err != nil {
 		return err
@@ -108,6 +116,9 @@ func (d *Device) Ping(ping []byte) error {
 // Wink sends a blink command to the device to visually signal its presence to the user.
 // It uses the CTAPHID_WINK command, which is optional and could be unsupported by some devices.
 func (d *Device) Wink() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	return ctaphid.Wink(d.device, d.cid)
 }
 
@@ -115,6 +126,9 @@ func (d *Device) Wink() error {
 // As long as the lock is active, any other channel trying to send a message will fail.
 // Send 0 seconds to unlock the channel.
 func (d *Device) Lock(seconds uint) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	return ctaphid.Lock(d.device, d.cid, uint8(seconds))
 }
 
@@ -131,6 +145,9 @@ func (d *Device) MakeCredential(
 	enterpriseAttestation uint,
 	attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier,
 ) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	notRequired, ok := d.info.Options[ctaptypes.OptionMakeCredentialUvNotRequired]
 	if (!ok || !notRequired) && pinUvAuthToken == nil {
 		return nil, ErrPinUvAuthTokenRequired
@@ -442,6 +459,9 @@ func (d *Device) GetAssertion(
 	options map[ctaptypes.Option]bool,
 ) iter.Seq2[*ctaptypes.AuthenticatorGetAssertionResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+
 		var (
 			protocol     *crypto.PinUvAuthProtocol
 			sharedSecret []byte
@@ -708,6 +728,9 @@ func (d *Device) GetInfo() *ctaptypes.AuthenticatorGetInfoResponse {
 // GetPINRetries retrieves the number of PIN retries remaining for the device, and if it requires a power cycle
 // (after reaching the limit, you can reset remaining tries by re-connecting the token).
 func (d *Device) GetPINRetries() (uint, bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	clientPin, ok := d.info.Options[ctaptypes.OptionClientPIN]
 	if !ok {
 		return 0, false, newErrorMessage(ErrNotSupported, "device doesn't support clientPin option")
@@ -722,6 +745,9 @@ func (d *Device) GetPINRetries() (uint, bool, error) {
 // SetPIN sets a new PIN on the device if the clientPin option is supported and no PIN exists.
 // Returns an error if the device does not support clientPin or if it was already set with PIN.
 func (d *Device) SetPIN(pin string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	clientPin, ok := d.info.Options[ctaptypes.OptionClientPIN]
 	if !ok {
 		return newErrorMessage(ErrNotSupported, "device doesn't support clientPin option")
@@ -741,6 +767,9 @@ func (d *Device) SetPIN(pin string) error {
 // ChangePIN updates the device's PIN by using the provided current PIN and new PIN.
 // Returns an error if the device does not support clientPin or if the PIN change process fails.
 func (d *Device) ChangePIN(currentPin, newPin string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	clientPin, ok := d.info.Options[ctaptypes.OptionClientPIN]
 	if !ok {
 		return newErrorMessage(ErrNotSupported, "device doesn't support clientPin option")
@@ -772,6 +801,9 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 	permission ctaptypes.Permission,
 	rpID string,
 ) ([]byte, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	noMcGaPermission, ok := d.info.Options[ctaptypes.OptionNoMcGaPermissionsWithClientPin]
 	if ok && noMcGaPermission && (permission&ctaptypes.PermissionMakeCredential != 0 || permission&ctaptypes.PermissionGetAssertion != 0) {
 		return nil, newErrorMessage(
@@ -839,6 +871,9 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 // Returns an error if the device does not support pinUvAuthToken or user verification features.
 // Requires the permission type and optionally Relying Party ID (rpID) in some cases to execute successfully.
 func (d *Device) GetPinUvAuthTokenUsingUV(permission ctaptypes.Permission, rpID string) ([]byte, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	token, ok := d.info.Options[ctaptypes.OptionPinUvAuthToken]
 	if !ok || !token {
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support pinUvAuthToken")
@@ -870,6 +905,9 @@ func (d *Device) GetPinUvAuthTokenUsingUV(permission ctaptypes.Permission, rpID 
 // GetUVRetries retrieves the number of remaining user verification retries from the device.
 // Returns an error if the device does not support user verification.
 func (d *Device) GetUVRetries() (uint, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	uv, ok := d.info.Options[ctaptypes.OptionUserVerification]
 	if !ok {
 		return 0, newErrorMessage(ErrNotSupported, "device doesn't support user verification")
@@ -884,12 +922,18 @@ func (d *Device) GetUVRetries() (uint, error) {
 // Reset performs a factory reset on the device, clearing all stored user data and resetting it to its default state.
 // Some devices require doing reset within 10 seconds after you connected the token.
 func (d *Device) Reset() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	return ctap.Reset(d.device, d.cid)
 }
 
 // GetBioModality returns bio modality of authenticator.
 // Currently, only fingerprint modality is defined in the FIDO 2.2 specification.
 func (d *Device) GetBioModality() (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -911,6 +955,9 @@ func (d *Device) GetBioModality() (*ctaptypes.AuthenticatorBioEnrollmentResponse
 //		MaxCaptureSamplesRequiredForEnroll: Indicates the maximum good samples required for enrollment.
 //	 	MaxTemplateFriendlyName: Indicates the maximum number of bytes the authenticator will accept as a templateFriendlyName.
 func (d *Device) GetFingerprintSensorInfo() (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -932,6 +979,9 @@ func (d *Device) BeginEnroll(
 	pinUvAuthToken []byte,
 	timeoutMilliseconds uint,
 ) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -956,6 +1006,9 @@ func (d *Device) EnrollCaptureNextSample(
 	templateID []byte,
 	timeoutMilliseconds uint,
 ) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -977,6 +1030,9 @@ func (d *Device) EnrollCaptureNextSample(
 
 // CancelCurrentEnrollment cancels a current enrollment process.
 func (d *Device) CancelCurrentEnrollment() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -995,6 +1051,9 @@ func (d *Device) CancelCurrentEnrollment() error {
 // EnumerateEnrollments enumerates enrollments by returning TemplateInfos property with an array of TemplateInfo
 // for all the enrollments available on the authenticator.
 func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -1014,6 +1073,9 @@ func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (*ctaptypes.Authent
 
 // SetFriendlyName allows renaming/setting of a friendly fingerprint name.
 func (d *Device) SetFriendlyName(pinUvAuthToken []byte, templateID []byte, friendlyName string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -1035,6 +1097,9 @@ func (d *Device) SetFriendlyName(pinUvAuthToken []byte, templateID []byte, frien
 
 // RemoveEnrollment removes existing enrollment.
 func (d *Device) RemoveEnrollment(pinUvAuthToken []byte, templateID []byte) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	bioEnroll, ok := d.info.Options[ctaptypes.OptionBioEnroll]
 	if d.info.Versions.IsPreviewOnly() {
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
@@ -1056,6 +1121,9 @@ func (d *Device) RemoveEnrollment(pinUvAuthToken []byte, templateID []byte) erro
 // GetCredsMetadata retrieves credential management metadata if the device supports it.
 // Mainly ExistingResidentCredentialsCount and MaxPossibleRemainingResidentCredentialsCount.
 func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.AuthenticatorCredentialManagementResponse, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 	if d.info.Versions.IsPreviewOnly() {
 		credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
@@ -1078,6 +1146,9 @@ func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.Authenticat
 // If the device does not support credential management, an error is yielded.
 func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.AuthenticatorCredentialManagementResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+
 		credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 		if d.info.Versions.IsPreviewOnly() {
 			credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
@@ -1105,6 +1176,9 @@ func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.Authen
 // via a callback function. If the device does not support credential management, an error is yielded.
 func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) iter.Seq2[*ctaptypes.AuthenticatorCredentialManagementResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+
 		credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 		if d.info.Versions.IsPreviewOnly() {
 			credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
@@ -1134,6 +1208,9 @@ func (d *Device) DeleteCredential(
 	pinUvAuthToken []byte,
 	credentialID webauthntypes.PublicKeyCredentialDescriptor,
 ) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 	if d.info.Versions.IsPreviewOnly() {
 		credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
@@ -1160,6 +1237,9 @@ func (d *Device) UpdateUserInformation(
 	credentialID webauthntypes.PublicKeyCredentialDescriptor,
 	user webauthntypes.PublicKeyCredentialUserEntity,
 ) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	credMgmt, ok := d.info.Options[ctaptypes.OptionCredentialManagement]
 	if d.info.Versions.IsPreviewOnly() {
 		credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
@@ -1183,6 +1263,9 @@ func (d *Device) UpdateUserInformation(
 // Returns an error if the device does not support large blobs or if there is an issue with the retrieval process.
 // Ensures integrity by validating computed and actual hashes of the retrieved data.
 func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	largeBlobs, ok := d.info.Options[ctaptypes.OptionLargeBlobs]
 	if !ok || !largeBlobs {
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support largeBlobs")
@@ -1248,6 +1331,9 @@ func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
 // It validates device support, fragments the blob data if needed, and sends it in chunks to the device.
 // Returns an error if the device does not support large blobs, the data exceeds size limits, or if any other failure occurs.
 func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBlob) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	largeBlobs, ok := d.info.Options[ctaptypes.OptionLargeBlobs]
 	if !ok || !largeBlobs {
 		return newErrorMessage(ErrNotSupported, "device doesn't support largeBlobs")
@@ -1306,6 +1392,9 @@ func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBl
 
 // EnableEnterpriseAttestation enables enterprise attestation on the device if supported, using the provided token.
 func (d *Device) EnableEnterpriseAttestation(pinUvAuthToken []byte) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if authnrCfg, ok := d.info.Options[ctaptypes.OptionAuthenticatorConfig]; !ok || !authnrCfg {
 		return newErrorMessage(ErrNotSupported, "device doesn't support authnrCfg")
 	}
@@ -1323,6 +1412,9 @@ func (d *Device) EnableEnterpriseAttestation(pinUvAuthToken []byte) error {
 
 // ToggleAlwaysUV toggles the always UV (User Verification) setting on the device if supported, using the provided token.
 func (d *Device) ToggleAlwaysUV(pinUvAuthToken []byte) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if authnrCfg, ok := d.info.Options[ctaptypes.OptionAuthenticatorConfig]; !ok || !authnrCfg {
 		return newErrorMessage(ErrNotSupported, "device doesn't support authnrCfg")
 	}
@@ -1345,6 +1437,9 @@ func (d *Device) SetMinPINLength(
 	forceChangePin bool,
 	pinComplexityPolicy bool,
 ) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if authnrCfg, ok := d.info.Options[ctaptypes.OptionAuthenticatorConfig]; !ok || !authnrCfg {
 		return newErrorMessage(ErrNotSupported, "device doesn't support authnrCfg")
 	}
@@ -1364,6 +1459,9 @@ func (d *Device) SetMinPINLength(
 // Selection is a higher-level version of ctap.Selection, which cancels the
 // command if the context is canceled.
 func (d *Device) Selection(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	errc := make(chan error, 1)
 
 	go func() {
