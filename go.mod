@@ -11,7 +11,7 @@ require (
 	github.com/samber/lo v1.51.0
 	github.com/samber/mo v1.15.0
 	github.com/sstallion/go-hid v0.15.0
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.41.0
 )
 
