@@ -86,6 +86,7 @@ type PublicKeyCredentialUserEntity struct {
 	ID          []byte `cbor:"id"`
 	DisplayName string `cbor:"displayName,omitempty"`
 	Name        string `cbor:"name,omitempty"`
+	Icon        string `cbor:"icon,omitempty"` // deprecated
 }
 
 // PublicKeyCredentialDescriptor identifies a specific public key credential.
