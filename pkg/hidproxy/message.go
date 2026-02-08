@@ -2,7 +2,6 @@ package hidproxy
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 
 	"github.com/fxamacker/cbor/v2"
@@ -27,22 +26,19 @@ type Message struct {
 
 func ParseMessage(pipe io.ReadWriteCloser) (*Message, error) {
 	cmd := make([]byte, 1)
-	if _, err := pipe.Read(cmd); err != nil {
+	if _, err := io.ReadFull(pipe, cmd); err != nil {
 		return nil, err
-	}
-	if len(cmd) != 1 {
-		return nil, errors.New("invalid command")
 	}
 
 	bLen := make([]byte, 2)
-	if _, err := pipe.Read(bLen); err != nil {
+	if _, err := io.ReadFull(pipe, bLen); err != nil {
 		return nil, err
 	}
 	length := binary.BigEndian.Uint16(bLen)
 
 	bData := make([]byte, length)
 	if length > 0 {
-		if _, err := pipe.Read(bData); err != nil {
+		if _, err := io.ReadFull(pipe, bData); err != nil {
 			return nil, err
 		}
 	}

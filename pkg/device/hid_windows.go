@@ -23,6 +23,9 @@ func Enumerate(ctx context.Context) iter.Seq2[*ghid.DeviceInfo, error] {
 					yield(nil, err)
 					return
 				}
+				defer func() {
+					_ = dev.Close()
+				}()
 
 				msg, err := hidproxy.NewMessage(hidproxy.CommandEnumerate, nil)
 				if err != nil {
@@ -76,10 +79,12 @@ func OpenPath(ctx context.Context, path string) (dev io.ReadWriteCloser, err err
 
 			pMsg, err := hidproxy.NewMessage(hidproxy.CommandStart, path)
 			if err != nil {
+				_ = dev.Close()
 				return nil, err
 			}
 
 			if _, err := pMsg.WriteTo(dev); err != nil {
+				_ = dev.Close()
 				return nil, err
 			}
 

@@ -52,6 +52,12 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = dev.Close()
+		}
+	}()
 
 	encMode, _ := cbor.CTAP2EncOptions().EncMode()
 	d := &Device{
@@ -80,6 +86,7 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	}
 	d.info = info
 
+	cleanup = false
 	return d, nil
 }
 
@@ -159,6 +166,9 @@ func (d *Device) MakeCredential(
 	)
 
 	extensions := new(ctaptypes.CreateExtensionInputs)
+	if extInputs == nil {
+		extInputs = &webauthntypes.CreateAuthenticationExtensionsClientInputs{}
+	}
 
 	if extInputs.LargeBlobInputs != nil {
 		return nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet")
@@ -468,6 +478,9 @@ func (d *Device) GetAssertion(
 		)
 
 		extensions := new(ctaptypes.GetExtensionInputs)
+		if extInputs == nil {
+			extInputs = &webauthntypes.GetAuthenticationExtensionsClientInputs{}
+		}
 
 		if extInputs.LargeBlobInputs != nil {
 			yield(nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet"))
@@ -1309,6 +1322,9 @@ func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
 		config = slices.Concat(config, respNext.Config)
 		offset += uint(len(respNext.Config))
 	}
+	if len(config) < 16 {
+		return nil, newErrorMessage(ErrLargeBlobsIntegrityCheck, "invalid large blobs response length")
+	}
 
 	bLargeBlobs := config[:len(config)-16]
 	hash := config[len(config)-16:]
@@ -1465,10 +1481,7 @@ func (d *Device) Selection(ctx context.Context) error {
 	errc := make(chan error, 1)
 
 	go func() {
-		if err := d.ctapClient.Selection(d.device, d.cid); err != nil {
-			errc <- err
-		}
-		errc <- nil
+		errc <- d.ctapClient.Selection(d.device, d.cid)
 	}()
 
 	select {

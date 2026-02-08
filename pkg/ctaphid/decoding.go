@@ -16,14 +16,11 @@ func (m *Message) ReadFrom(device io.Reader) (int64, error) {
 		var p packet
 
 		cid := make([]byte, 4)
-		cidCnt, err := buf.Read(cid)
+		cidCnt, err := io.ReadFull(buf, cid)
 		if err != nil {
 			return 0, err
 		}
 		bytesRead += cidCnt
-		if cidCnt != 4 {
-			return 0, errors.New("invalid cid length")
-		}
 		p.cid = ChannelID(cid)
 
 		cmdOrSeq, err := buf.ReadByte()
@@ -43,7 +40,7 @@ func (m *Message) ReadFrom(device io.Reader) (int64, error) {
 		dataLenCnt := 0
 		if !p.continuation {
 			dataLen := make([]byte, 2)
-			cnt, err := buf.Read(dataLen)
+			cnt, err := io.ReadFull(buf, dataLen)
 			if err != nil {
 				return 0, err
 			}
@@ -51,6 +48,8 @@ func (m *Message) ReadFrom(device io.Reader) (int64, error) {
 			p.length = binary.BigEndian.Uint16(dataLen)
 			total = int(p.length)
 			dataLenCnt = cnt
+		} else if total < 0 {
+			return 0, errors.New("continuation packet before init packet")
 		}
 
 		dataCnt := total
@@ -59,7 +58,7 @@ func (m *Message) ReadFrom(device io.Reader) (int64, error) {
 		}
 
 		p.data = make([]byte, dataCnt)
-		dataCnt, err = buf.Read(p.data)
+		dataCnt, err = io.ReadFull(buf, p.data)
 		if err != nil {
 			return 0, err
 		}

@@ -9,6 +9,13 @@ import (
 	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
 )
 
+func ensureDataLen(data []byte, min int) error {
+	if len(data) < min {
+		return ErrInvalidResponseMessage
+	}
+	return nil
+}
+
 func CBOR(dev io.ReadWriter, cid ChannelID, data []byte) (*CBORResponse, error) {
 	msg, err := NewMessage(cid, CTAPHID_CBOR, data)
 	if err != nil {
@@ -35,12 +42,18 @@ read:
 			if i == 0 {
 				switch p.command {
 				case CTAPHID_CBOR:
+					if err := ensureDataLen(p.data, 1); err != nil {
+						return nil, err
+					}
 					command := ctaptypes.Command(data[0])
 					code := StatusCode(p.data[0])
 					if code != CTAP2_OK {
 						return nil, newCTAPError(command, code)
 					}
 				case CTAPHID_ERROR:
+					if err := ensureDataLen(p.data, 1); err != nil {
+						return nil, err
+					}
 					return nil, errors.New(Error(p.data[0]).String())
 				case CTAPHID_KEEPALIVE:
 					continue read
@@ -50,6 +63,9 @@ read:
 			}
 
 			respData = slices.Concat(respData, p.data)
+		}
+		if err := ensureDataLen(respData, 1); err != nil {
+			return nil, err
 		}
 
 		r := &CBORResponse{
@@ -85,6 +101,9 @@ func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (*InitResponse, error)
 
 		switch p.command {
 		case CTAPHID_INIT:
+			if err := ensureDataLen(p.data, 17); err != nil {
+				return nil, err
+			}
 			if subtle.ConstantTimeCompare(p.data[:8], nonce) != 1 {
 				return nil, errors.New("invalid nonce")
 			}
@@ -101,6 +120,9 @@ func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (*InitResponse, error)
 
 			return r, nil
 		case CTAPHID_ERROR:
+			if err := ensureDataLen(p.data, 1); err != nil {
+				return nil, err
+			}
 			return nil, errors.New(Error(p.data[0]).String())
 		case CTAPHID_KEEPALIVE:
 			continue
@@ -137,6 +159,9 @@ read:
 				switch p.command {
 				case CTAPHID_PING:
 				case CTAPHID_ERROR:
+					if err := ensureDataLen(p.data, 1); err != nil {
+						return nil, err
+					}
 					return nil, errors.New(Error(p.data[0]).String())
 				case CTAPHID_KEEPALIVE:
 					continue read
@@ -195,6 +220,9 @@ func Wink(dev io.ReadWriter, cid ChannelID) error {
 		case CTAPHID_WINK:
 			return nil
 		case CTAPHID_ERROR:
+			if err := ensureDataLen(p.data, 1); err != nil {
+				return err
+			}
 			return errors.New(Error(p.data[0]).String())
 		case CTAPHID_KEEPALIVE:
 			continue
@@ -230,6 +258,9 @@ func Lock(dev io.ReadWriter, cid ChannelID, seconds uint8) error {
 		case CTAPHID_LOCK:
 			return nil
 		case CTAPHID_ERROR:
+			if err := ensureDataLen(p.data, 1); err != nil {
+				return err
+			}
 			return errors.New(Error(p.data[0]).String())
 		case CTAPHID_KEEPALIVE:
 			continue
