@@ -8,7 +8,7 @@ require (
 	github.com/go-ctap/hid v0.4.1
 	github.com/google/uuid v1.6.0
 	github.com/ldclabs/cose v1.3.4
-	github.com/samber/lo v1.52.0
+	github.com/samber/lo v1.53.0
 	github.com/samber/mo v1.16.0
 	github.com/sstallion/go-hid v0.15.0
 	github.com/stretchr/testify v1.11.1
