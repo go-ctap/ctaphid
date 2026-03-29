@@ -1,6 +1,6 @@
 module github.com/go-ctap/ctaphid
 
-go 1.25.0
+go 1.25.8
 
 require (
 	github.com/Microsoft/go-winio v0.6.2
