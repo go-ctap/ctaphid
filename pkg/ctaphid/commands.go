@@ -16,6 +16,17 @@ func ensureDataLen(data []byte, min int) error {
 	return nil
 }
 
+func ensureResponseCID(msg Message, cid ChannelID) error {
+	if len(msg) < 1 {
+		return ErrInvalidResponseMessage
+	}
+	if msg[0].cid != cid {
+		return ErrInvalidResponseMessage
+	}
+
+	return nil
+}
+
 func CBOR(dev io.ReadWriter, cid ChannelID, data []byte) (*CBORResponse, error) {
 	msg, err := NewMessage(cid, CTAPHID_CBOR, data)
 	if err != nil {
@@ -33,8 +44,8 @@ read:
 			return nil, err
 		}
 
-		if len(respMsg) < 1 {
-			return nil, ErrInvalidResponseMessage
+		if err := ensureResponseCID(respMsg, cid); err != nil {
+			return nil, err
 		}
 
 		var respData []byte
@@ -93,8 +104,8 @@ func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (*InitResponse, error)
 			return nil, err
 		}
 
-		if len(respMsg) < 1 {
-			return nil, ErrInvalidResponseMessage
+		if err := ensureResponseCID(respMsg, cid); err != nil {
+			return nil, err
 		}
 
 		p := respMsg[0]
@@ -149,8 +160,8 @@ read:
 			return nil, err
 		}
 
-		if len(respMsg) < 1 {
-			return nil, ErrInvalidResponseMessage
+		if err := ensureResponseCID(respMsg, cid); err != nil {
+			return nil, err
 		}
 
 		var pong []byte
@@ -210,8 +221,8 @@ func Wink(dev io.ReadWriter, cid ChannelID) error {
 			return err
 		}
 
-		if len(respMsg) < 1 {
-			return ErrInvalidResponseMessage
+		if err := ensureResponseCID(respMsg, cid); err != nil {
+			return err
 		}
 
 		p := respMsg[0]
@@ -248,8 +259,8 @@ func Lock(dev io.ReadWriter, cid ChannelID, seconds uint8) error {
 			return err
 		}
 
-		if len(respMsg) < 1 {
-			return ErrInvalidResponseMessage
+		if err := ensureResponseCID(respMsg, cid); err != nil {
+			return err
 		}
 
 		p := respMsg[0]

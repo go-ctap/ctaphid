@@ -27,13 +27,14 @@ import (
 
 // Device represents a physical or virtual hardware device supporting CTAP communication protocols.
 type Device struct {
-	Path       string
-	device     io.ReadWriteCloser
-	cid        [4]byte
-	info       *ctaptypes.AuthenticatorGetInfoResponse
-	ctapClient *ctap.Client
-	encMode    cbor.EncMode
-	mu         sync.Mutex // global mutex to serialize requests to the device
+	Path              string
+	device            io.ReadWriteCloser
+	cid               [4]byte
+	info              *ctaptypes.AuthenticatorGetInfoResponse
+	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol
+	ctapClient        *ctap.Client
+	encMode           cbor.EncMode
+	mu                sync.Mutex // global mutex to serialize requests to the device
 }
 
 type CtxKey = string
@@ -41,6 +42,39 @@ type CtxKey = string
 const (
 	CtxKeyUseNamedPipe CtxKey = "useNamedPipe"
 )
+
+const defaultMaxMsgSize = 1024
+
+func (d *Device) requirePinUvAuthProtocol() (ctaptypes.PinUvAuthProtocol, error) {
+	if d.pinUvAuthProtocol == 0 {
+		return 0, newErrorMessage(ErrNotSupported, "device didn't report pinUvAuthProtocols")
+	}
+
+	return d.pinUvAuthProtocol, nil
+}
+
+func (d *Device) pinUvAuthProtocolWithKeyAgreement() (ctaptypes.PinUvAuthProtocol, key.Key, error) {
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, pinUvAuthProtocol)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return pinUvAuthProtocol, keyAgreement, nil
+}
+
+func (d *Device) maxFragmentLength() uint {
+	maxMsgSize := d.info.MaxMsgSize
+	if maxMsgSize == 0 {
+		maxMsgSize = defaultMaxMsgSize
+	}
+
+	return maxMsgSize - 64
+}
 
 // New creates a new Device instance from a given HID path.
 // It also initializes a new underlying CTAP2 client with the provided options.
@@ -85,6 +119,9 @@ func New(path string, opts ...options.Option) (*Device, error) {
 		return nil, err
 	}
 	d.info = info
+	if len(info.PinUvAuthProtocols) > 0 {
+		d.pinUvAuthProtocol = info.PinUvAuthProtocols[0]
+	}
 
 	cleanup = false
 	return d, nil
@@ -136,6 +173,10 @@ func (d *Device) Lock(seconds uint) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	if seconds > 10 {
+		return newErrorMessage(SyntaxError, "lock seconds must be between 0 and 10")
+	}
+
 	return ctaphid.Lock(d.device, d.cid, uint8(seconds))
 }
 
@@ -161,8 +202,9 @@ func (d *Device) MakeCredential(
 	}
 
 	var (
-		protocol     *crypto.PinUvAuthProtocol
-		sharedSecret []byte
+		pinUvAuthProtocol ctaptypes.PinUvAuthProtocol
+		protocol          *crypto.PinUvAuthProtocol
+		sharedSecret      []byte
 	)
 
 	extensions := new(ctaptypes.CreateExtensionInputs)
@@ -194,19 +236,24 @@ func (d *Device) MakeCredential(
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecretMC) {
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret-mc extension")
 		}
+		if err := validateHMACGetSecretSalts(extInputs.CreateHMACSecretMCInputs.HMACGetSecret); err != nil {
+			return nil, err
+		}
+		var (
+			err          error
+			keyAgreement key.Key
+		)
+		pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
+		if err != nil {
+			return nil, err
+		}
 
 		salt := slices.Concat(
 			extInputs.CreateHMACSecretMCInputs.HMACGetSecret.Salt1,
 			extInputs.CreateHMACSecretMCInputs.HMACGetSecret.Salt2,
 		)
 
-		var err error
-		protocol, err = crypto.NewPinUvAuthProtocol(d.info.PinUvAuthProtocols[0])
-		if err != nil {
-			return nil, err
-		}
-
-		keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+		protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +270,7 @@ func (d *Device) MakeCredential(
 		}
 
 		saltAuth := crypto.Authenticate(
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			sharedSecret,
 			saltEnc,
 		)
@@ -236,7 +283,7 @@ func (d *Device) MakeCredential(
 				KeyAgreement:      platformCoseKey,
 				SaltEnc:           saltEnc,
 				SaltAuth:          saltAuth,
-				PinUvAuthProtocol: d.info.PinUvAuthProtocols[0],
+				PinUvAuthProtocol: pinUvAuthProtocol,
 			},
 		}
 	}
@@ -254,6 +301,14 @@ func (d *Device) MakeCredential(
 		if extInputs.PRF.Eval == nil {
 			return nil, newErrorMessage(SyntaxError, "eval is empty")
 		}
+		var (
+			err          error
+			keyAgreement key.Key
+		)
+		pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
+		if err != nil {
+			return nil, err
+		}
 
 		hasher := sha256.New()
 		hasher.Write([]byte("WebAuthn PRF"))
@@ -269,13 +324,7 @@ func (d *Device) MakeCredential(
 			salt = slices.Concat(salt, hasher.Sum(nil))
 		}
 
-		var err error
-		protocol, err = crypto.NewPinUvAuthProtocol(d.info.PinUvAuthProtocols[0])
-		if err != nil {
-			return nil, err
-		}
-
-		keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+		protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +341,7 @@ func (d *Device) MakeCredential(
 		}
 
 		saltAuth := crypto.Authenticate(
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			sharedSecret,
 			saltEnc,
 		)
@@ -305,8 +354,16 @@ func (d *Device) MakeCredential(
 				KeyAgreement:      platformCoseKey,
 				SaltEnc:           saltEnc,
 				SaltAuth:          saltAuth,
-				PinUvAuthProtocol: d.info.PinUvAuthProtocols[0],
+				PinUvAuthProtocol: pinUvAuthProtocol,
 			},
+		}
+	}
+
+	if pinUvAuthToken != nil && pinUvAuthProtocol == 0 {
+		var err error
+		pinUvAuthProtocol, err = d.requirePinUvAuthProtocol()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -374,12 +431,13 @@ func (d *Device) MakeCredential(
 		}
 	}
 
+	clientDataHash := sha256.Sum256(clientData)
 	resp, err := d.ctapClient.MakeCredential(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
-		clientData,
+		clientDataHash[:],
 		rp,
 		user,
 		pubKeyCredParams,
@@ -396,7 +454,7 @@ func (d *Device) MakeCredential(
 	extOutputs := new(webauthntypes.CreateAuthenticationExtensionsClientOutputs)
 	resp.ExtensionOutputs = extOutputs
 
-	if extInputs.CreateCredentialProtectionInputs != nil && extInputs.CredentialProperties {
+	if extInputs.CreateCredentialPropertiesInputs != nil && extInputs.CredentialProperties {
 		extOutputs.CreateCredentialPropertiesOutputs = &webauthntypes.CreateCredentialPropertiesOutputs{
 			CredentialProperties: webauthntypes.CredentialPropertiesOutput{
 				ResidentKey: options[ctaptypes.OptionResidentKeys],
@@ -458,7 +516,7 @@ func (d *Device) MakeCredential(
 }
 
 // GetAssertion provides a generator function to iterate over assertions stored on the device
-// for the specified Relying Party, clientDataHash, and allowed list (in case of non-discoverable credentials).
+// for the specified Relying Party, clientData, and allowed list (in case of non-discoverable credentials).
 // It yields results via a callback function.
 func (d *Device) GetAssertion(
 	pinUvAuthToken []byte,
@@ -473,8 +531,9 @@ func (d *Device) GetAssertion(
 		defer d.mu.Unlock()
 
 		var (
-			protocol     *crypto.PinUvAuthProtocol
-			sharedSecret []byte
+			pinUvAuthProtocol ctaptypes.PinUvAuthProtocol
+			protocol          *crypto.PinUvAuthProtocol
+			sharedSecret      []byte
 		)
 
 		extensions := new(ctaptypes.GetExtensionInputs)
@@ -494,19 +553,25 @@ func (d *Device) GetAssertion(
 
 		// hmac-secret
 		if extInputs.GetHMACSecretInputs != nil {
+			if err := validateHMACGetSecretSalts(extInputs.GetHMACSecretInputs.HMACGetSecret); err != nil {
+				yield(nil, err)
+				return
+			}
+			var (
+				err          error
+				keyAgreement key.Key
+			)
+			pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
 			salt := slices.Concat(
 				extInputs.GetHMACSecretInputs.HMACGetSecret.Salt1,
 				extInputs.GetHMACSecretInputs.HMACGetSecret.Salt2,
 			)
 
-			var err error
-			protocol, err = crypto.NewPinUvAuthProtocol(d.info.PinUvAuthProtocols[0])
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+			protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 			if err != nil {
 				yield(nil, err)
 				return
@@ -526,7 +591,7 @@ func (d *Device) GetAssertion(
 			}
 
 			saltAuth := crypto.Authenticate(
-				d.info.PinUvAuthProtocols[0],
+				pinUvAuthProtocol,
 				sharedSecret,
 				saltEnc,
 			)
@@ -536,7 +601,7 @@ func (d *Device) GetAssertion(
 					KeyAgreement:      platformCoseKey,
 					SaltEnc:           saltEnc,
 					SaltAuth:          saltAuth,
-					PinUvAuthProtocol: d.info.PinUvAuthProtocols[0],
+					PinUvAuthProtocol: pinUvAuthProtocol,
 				},
 			}
 		}
@@ -578,6 +643,19 @@ func (d *Device) GetAssertion(
 			if ev == nil && extInputs.PRF.Eval != nil {
 				ev = extInputs.PRF.Eval
 			}
+			if ev == nil {
+				yield(nil, newErrorMessage(SyntaxError, "eval is empty"))
+				return
+			}
+			var (
+				err          error
+				keyAgreement key.Key
+			)
+			pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
 
 			hasher := sha256.New()
 			hasher.Write([]byte("WebAuthn PRF"))
@@ -593,14 +671,7 @@ func (d *Device) GetAssertion(
 				salt = slices.Concat(salt, hasher.Sum(nil))
 			}
 
-			var err error
-			protocol, err = crypto.NewPinUvAuthProtocol(d.info.PinUvAuthProtocols[0])
-			if err != nil {
-				yield(nil, err)
-				return
-			}
-
-			keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+			protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 			if err != nil {
 				yield(nil, err)
 				return
@@ -620,7 +691,7 @@ func (d *Device) GetAssertion(
 			}
 
 			saltAuth := crypto.Authenticate(
-				d.info.PinUvAuthProtocols[0],
+				pinUvAuthProtocol,
 				sharedSecret,
 				saltEnc,
 			)
@@ -630,7 +701,7 @@ func (d *Device) GetAssertion(
 					KeyAgreement:      platformCoseKey,
 					SaltEnc:           saltEnc,
 					SaltAuth:          saltAuth,
-					PinUvAuthProtocol: d.info.PinUvAuthProtocols[0],
+					PinUvAuthProtocol: pinUvAuthProtocol,
 				},
 			}
 		}
@@ -642,13 +713,23 @@ func (d *Device) GetAssertion(
 			}
 		}
 
+		if pinUvAuthToken != nil && pinUvAuthProtocol == 0 {
+			var err error
+			pinUvAuthProtocol, err = d.requirePinUvAuthProtocol()
+			if err != nil {
+				yield(nil, err)
+				return
+			}
+		}
+
+		clientDataHash := sha256.Sum256(clientData)
 		for assertion, err := range d.ctapClient.GetAssertion(
 			d.device,
 			d.cid,
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			pinUvAuthToken,
 			rpID,
-			clientData,
+			clientDataHash[:],
 			allowList,
 			extensions,
 			options,
@@ -662,8 +743,10 @@ func (d *Device) GetAssertion(
 
 			// Yield assertions without extension data
 			if !assertion.AuthData.Flags.ExtensionDataIncluded() {
-				yield(assertion, nil)
-				return
+				if !yield(assertion, nil) {
+					return
+				}
+				continue
 			}
 
 			// credBlob
@@ -752,7 +835,12 @@ func (d *Device) GetPINRetries() (uint, bool, error) {
 		return 0, false, newErrorMessage(ErrPinNotSet, "please set PIN first")
 	}
 
-	return d.ctapClient.GetPINRetries(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return 0, false, err
+	}
+
+	return d.ctapClient.GetPINRetries(d.device, d.cid, pinUvAuthProtocol)
 }
 
 // SetPIN sets a new PIN on the device if the clientPin option is supported and no PIN exists.
@@ -769,12 +857,17 @@ func (d *Device) SetPIN(pin string) error {
 		return newErrorMessage(ErrPinAlreadySet, "pin already set, use changePin instead")
 	}
 
-	keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+	pin, err := d.normalizeAndValidateNewPIN(pin)
 	if err != nil {
 		return err
 	}
 
-	return d.ctapClient.SetPIN(d.device, d.cid, d.info.PinUvAuthProtocols[0], keyAgreement, pin)
+	pinUvAuthProtocol, keyAgreement, err := d.pinUvAuthProtocolWithKeyAgreement()
+	if err != nil {
+		return err
+	}
+
+	return d.ctapClient.SetPIN(d.device, d.cid, pinUvAuthProtocol, keyAgreement, pin)
 }
 
 // ChangePIN updates the device's PIN by using the provided current PIN and new PIN.
@@ -791,7 +884,16 @@ func (d *Device) ChangePIN(currentPin, newPin string) error {
 		return newErrorMessage(ErrPinNotSet, "please set PIN first")
 	}
 
-	keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+	currentPin, err := d.normalizeAndValidateCurrentPIN(currentPin)
+	if err != nil {
+		return err
+	}
+	newPin, err = d.normalizeAndValidateNewPIN(newPin)
+	if err != nil {
+		return err
+	}
+
+	pinUvAuthProtocol, keyAgreement, err := d.pinUvAuthProtocolWithKeyAgreement()
 	if err != nil {
 		return err
 	}
@@ -799,7 +901,7 @@ func (d *Device) ChangePIN(currentPin, newPin string) error {
 	return d.ctapClient.ChangePIN(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		keyAgreement,
 		currentPin,
 		newPin,
@@ -816,6 +918,11 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 ) ([]byte, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	pin, err := d.normalizeAndValidateCurrentPIN(pin)
+	if err != nil {
+		return nil, err
+	}
 
 	noMcGaPermission, ok := d.info.Options[ctaptypes.OptionNoMcGaPermissionsWithClientPin]
 	if ok && noMcGaPermission && (permission&ctaptypes.PermissionMakeCredential != 0 || permission&ctaptypes.PermissionGetAssertion != 0) {
@@ -853,7 +960,7 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 			"you cannot set be AuthenticatorConfiguration permission if device doesn't support uv option")
 	}
 
-	keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+	pinUvAuthProtocol, keyAgreement, err := d.pinUvAuthProtocolWithKeyAgreement()
 	if err != nil {
 		return nil, err
 	}
@@ -863,7 +970,7 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 		return d.ctapClient.GetPinToken(
 			d.device,
 			d.cid,
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			keyAgreement,
 			pin,
 		)
@@ -872,7 +979,7 @@ func (d *Device) GetPinUvAuthTokenUsingPIN(
 	return d.ctapClient.GetPinUvAuthTokenUsingPinWithPermissions(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		keyAgreement,
 		pin,
 		permission,
@@ -900,7 +1007,7 @@ func (d *Device) GetPinUvAuthTokenUsingUV(permission ctaptypes.Permission, rpID 
 		return nil, newErrorMessage(ErrUvNotConfigured, "please configure UV first (e.g. enroll biometry)")
 	}
 
-	keyAgreement, err := d.ctapClient.GetKeyAgreement(d.device, d.cid, d.info.PinUvAuthProtocols[0])
+	pinUvAuthProtocol, keyAgreement, err := d.pinUvAuthProtocolWithKeyAgreement()
 	if err != nil {
 		return nil, err
 	}
@@ -908,7 +1015,7 @@ func (d *Device) GetPinUvAuthTokenUsingUV(permission ctaptypes.Permission, rpID 
 	return d.ctapClient.GetPinUvAuthTokenUsingUvWithPermissions(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		keyAgreement,
 		permission,
 		rpID,
@@ -1003,11 +1110,16 @@ func (d *Device) BeginEnroll(
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return nil, err
+	}
+
 	return d.ctapClient.BeginEnroll(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		timeoutMilliseconds,
 	)
@@ -1030,11 +1142,16 @@ func (d *Device) EnrollCaptureNextSample(
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return nil, err
+	}
+
 	return d.ctapClient.EnrollCaptureNextSample(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		templateID,
 		timeoutMilliseconds,
@@ -1075,11 +1192,16 @@ func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (*ctaptypes.Authent
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return nil, err
+	}
+
 	return d.ctapClient.EnumerateEnrollments(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 	)
 }
@@ -1097,11 +1219,16 @@ func (d *Device) SetFriendlyName(pinUvAuthToken []byte, templateID []byte, frien
 		return newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.SetFriendlyName(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		templateID,
 		friendlyName,
@@ -1121,11 +1248,16 @@ func (d *Device) RemoveEnrollment(pinUvAuthToken []byte, templateID []byte) erro
 		return newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.RemoveEnrollment(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		templateID,
 	)
@@ -1145,11 +1277,16 @@ func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.Authenticat
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support credential management")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return nil, err
+	}
+
 	return d.ctapClient.GetCredsMetadata(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 	)
 }
@@ -1168,13 +1305,20 @@ func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.Authen
 		}
 		if !ok || !credMgmt {
 			yield(nil, newErrorMessage(ErrNotSupported, "device doesn't support credential management"))
+			return
+		}
+
+		pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+		if err != nil {
+			yield(nil, err)
+			return
 		}
 
 		for rp, err := range d.ctapClient.EnumerateRPs(
 			d.device,
 			d.cid,
 			d.info.Versions.IsPreviewOnly(),
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			pinUvAuthToken,
 		) {
 			if !yield(rp, err) {
@@ -1198,13 +1342,20 @@ func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) it
 		}
 		if !ok || !credMgmt {
 			yield(nil, newErrorMessage(ErrNotSupported, "device doesn't support credential management"))
+			return
+		}
+
+		pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+		if err != nil {
+			yield(nil, err)
+			return
 		}
 
 		for rp, err := range d.ctapClient.EnumerateCredentials(
 			d.device,
 			d.cid,
 			d.info.Versions.IsPreviewOnly(),
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			pinUvAuthToken,
 			rpIDHash,
 		) {
@@ -1232,11 +1383,16 @@ func (d *Device) DeleteCredential(
 		return newErrorMessage(ErrNotSupported, "device doesn't support credential management")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.DeleteCredential(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		credentialID,
 	)
@@ -1261,11 +1417,16 @@ func (d *Device) UpdateUserInformation(
 		return newErrorMessage(ErrNotSupported, "device doesn't support credential management")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.UpdateUserInformation(
 		d.device,
 		d.cid,
-		false, //d.info.Versions.IsPreviewOnly(),
-		d.info.PinUvAuthProtocols[0],
+		d.info.Versions.IsPreviewOnly(),
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		credentialID,
 		user,
@@ -1284,7 +1445,7 @@ func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
 		return nil, newErrorMessage(ErrNotSupported, "device doesn't support largeBlobs")
 	}
 
-	maxFragmentLength := d.info.MaxMsgSize - 64
+	maxFragmentLength := d.maxFragmentLength()
 
 	resp, err := d.ctapClient.LargeBlobs(
 		d.device,
@@ -1332,7 +1493,7 @@ func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
 	hasher := sha256.New()
 	hasher.Write(bLargeBlobs)
 	if !slices.Equal(hash, hasher.Sum(nil)[:16]) {
-		return nil, newErrorMessage(ErrLargeBlobsIntegrityCheck, "for some reason calculated and actual hashes mismatch")
+		return []*ctaptypes.LargeBlob{}, nil
 	}
 
 	var blobs []*ctaptypes.LargeBlob
@@ -1377,9 +1538,14 @@ func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBl
 		)
 	}
 
-	maxFragmentLength := d.info.MaxMsgSize - 64
+	maxFragmentLength := d.maxFragmentLength()
 	offset := uint(0)
 	length := uint(len(set))
+
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
 
 	setChunks := lo.Chunk(set, int(maxFragmentLength))
 	for i, chunk := range setChunks {
@@ -1390,7 +1556,7 @@ func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBl
 		if _, err := d.ctapClient.LargeBlobs(
 			d.device,
 			d.cid,
-			d.info.PinUvAuthProtocols[0],
+			pinUvAuthProtocol,
 			pinUvAuthToken,
 			0,
 			chunk,
@@ -1418,10 +1584,15 @@ func (d *Device) EnableEnterpriseAttestation(pinUvAuthToken []byte) error {
 		return newErrorMessage(ErrNotSupported, "device doesn't support ep")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.EnableEnterpriseAttestation(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 	)
 }
@@ -1438,10 +1609,15 @@ func (d *Device) ToggleAlwaysUV(pinUvAuthToken []byte) error {
 		return newErrorMessage(ErrNotSupported, "device doesn't support alwaysUv")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.ToggleAlwaysUV(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 	)
 }
@@ -1460,10 +1636,15 @@ func (d *Device) SetMinPINLength(
 		return newErrorMessage(ErrNotSupported, "device doesn't support authnrCfg")
 	}
 
+	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
+	if err != nil {
+		return err
+	}
+
 	return d.ctapClient.SetMinPINLength(
 		d.device,
 		d.cid,
-		d.info.PinUvAuthProtocols[0],
+		pinUvAuthProtocol,
 		pinUvAuthToken,
 		newMinPINLength,
 		minPinLengthRPIDs,

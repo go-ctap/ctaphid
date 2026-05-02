@@ -40,7 +40,7 @@ func (cl *Client) MakeCredential(
 	cid ctaphid.ChannelID,
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
-	clientData []byte,
+	clientDataHash []byte,
 	rp webauthntypes.PublicKeyCredentialRpEntity,
 	user webauthntypes.PublicKeyCredentialUserEntity,
 	pubKeyCredParams []webauthntypes.PublicKeyCredentialParameters,
@@ -50,9 +50,9 @@ func (cl *Client) MakeCredential(
 	enterpriseAttestation uint,
 	attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier,
 ) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
-	hasher := sha256.New()
-	hasher.Write(clientData)
-	clientDataHash := hasher.Sum(nil)
+	if err := ValidateClientDataHash(clientDataHash); err != nil {
+		return nil, err
+	}
 
 	req := &ctaptypes.AuthenticatorMakeCredentialRequest{
 		ClientDataHash:               clientDataHash,
@@ -107,15 +107,16 @@ func (cl *Client) GetAssertion(
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol,
 	pinUvAuthToken []byte,
 	rpID string,
-	clientData []byte,
+	clientDataHash []byte,
 	allowList []webauthntypes.PublicKeyCredentialDescriptor,
 	extensions *ctaptypes.GetExtensionInputs,
 	options map[ctaptypes.Option]bool,
 ) iter.Seq2[*ctaptypes.AuthenticatorGetAssertionResponse, error] {
 	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
-		hasher := sha256.New()
-		hasher.Write(clientData)
-		clientDataHash := hasher.Sum(nil)
+		if err := ValidateClientDataHash(clientDataHash); err != nil {
+			yield(nil, err)
+			return
+		}
 
 		req := &ctaptypes.AuthenticatorGetAssertionRequest{
 			RPID:           rpID,
@@ -273,6 +274,11 @@ func (cl *Client) SetPIN(
 	keyAgreement key.Key,
 	pin string,
 ) error {
+	pin, err := normalizeAndValidatePIN(pin)
+	if err != nil {
+		return err
+	}
+
 	protocol, err := crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 	if err != nil {
 		return err
@@ -283,11 +289,8 @@ func (cl *Client) SetPIN(
 		return err
 	}
 
-	// Pad pin with zero bytes until
-	pinBytes := []byte(pin)
-	for i := 0; i < 64-len(pin); i++ {
-		pinBytes = append(pinBytes, 0)
-	}
+	pinBytes := make([]byte, 64)
+	copy(pinBytes, pin)
 
 	ciphertext, err := protocol.Encrypt(sharedSecret, pinBytes)
 	if err != nil {
@@ -334,6 +337,15 @@ func (cl *Client) ChangePIN(
 	currentPin string,
 	newPin string,
 ) error {
+	currentPin, err := normalizeAndValidatePIN(currentPin)
+	if err != nil {
+		return err
+	}
+	newPin, err = normalizeAndValidatePIN(newPin)
+	if err != nil {
+		return err
+	}
+
 	protocol, err := crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 	if err != nil {
 		return err
@@ -354,10 +366,8 @@ func (cl *Client) ChangePIN(
 		return err
 	}
 
-	newPinBytes := []byte(newPin)
-	for i := 0; i < 64-len([]byte(newPin)); i++ {
-		newPinBytes = append(newPinBytes, 0)
-	}
+	newPinBytes := make([]byte, 64)
+	copy(newPinBytes, newPin)
 
 	newPinEnc, err := protocol.Encrypt(sharedSecret, newPinBytes)
 	if err != nil {
@@ -406,6 +416,11 @@ func (cl *Client) GetPinToken(
 	keyAgreement key.Key,
 	pin string,
 ) ([]byte, error) {
+	pin, err := normalizeAndValidatePIN(pin)
+	if err != nil {
+		return nil, err
+	}
+
 	protocol, err := crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 	if err != nil {
 		return nil, err
@@ -547,6 +562,11 @@ func (cl *Client) GetPinUvAuthTokenUsingPinWithPermissions(
 	permissions ctaptypes.Permission,
 	rpID string,
 ) ([]byte, error) {
+	pin, err := normalizeAndValidatePIN(pin)
+	if err != nil {
+		return nil, err
+	}
+
 	protocol, err := crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 	if err != nil {
 		return nil, err

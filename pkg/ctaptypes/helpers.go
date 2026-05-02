@@ -3,6 +3,7 @@ package ctaptypes
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
@@ -32,6 +33,10 @@ type authData struct {
 }
 
 func parseAuthData(data []byte) (*authData, error) {
+	if len(data) < 37 {
+		return nil, fmt.Errorf("auth data is too short: got %d bytes, want at least 37", len(data))
+	}
+
 	d := &authData{
 		RPIDHash:  data[:32],
 		Flags:     AuthDataFlag(data[32]),
@@ -39,18 +44,31 @@ func parseAuthData(data []byte) (*authData, error) {
 	}
 	offset := 37
 	if d.Flags.AttestedCredentialDataIncluded() {
+		if len(data) < offset+16 {
+			return nil, fmt.Errorf("auth data is missing attested credential AAGUID")
+		}
+
 		credData := &AttestedCredentialData{
 			AAGUID: uuid.UUID(data[offset : offset+16]),
 		}
 		offset += 16
 
 		// Credential ID
+		if len(data) < offset+2 {
+			return nil, fmt.Errorf("auth data is missing credential ID length")
+		}
 		length := binary.BigEndian.Uint16(data[offset : offset+2])
 		offset += 2
+		if len(data) < offset+int(length) {
+			return nil, fmt.Errorf("auth data credential ID is truncated")
+		}
 		credData.CredentialID = data[offset : offset+int(length)]
 		offset += int(length)
 
 		// Credential Public Key
+		if len(data) == offset {
+			return nil, fmt.Errorf("auth data is missing credential public key")
+		}
 		dec := cbor.NewDecoder(bytes.NewReader(data[offset:]))
 		if err := dec.Decode(&credData.CredentialPublicKey); err != nil {
 			return nil, err
