@@ -20,13 +20,13 @@ func NewMessage(cid ChannelID, cmd Command, data []byte) (Message, error) {
 		command: cmd,
 		length:  uint16(len(data)),
 		// DATA starts from offset 7
-		data: lo.Slice(data, 0, 64-7),
+		data: lo.Slice(data, 0, initPacketDataSize),
 	})
 
 	// if data is longer than 64 bytes minus offset, split it into chunks and
 	// append them to the message as continuation packets
-	if len(data) > (64 - 7) {
-		chunks := lo.Chunk[byte](data[64-7:], 64-5)
+	if len(data) > initPacketDataSize {
+		chunks := lo.Chunk[byte](data[initPacketDataSize:], continuationPacketDataSize)
 		for i, chunk := range chunks {
 			msg = append(msg, &packet{
 				cid:          cid,
@@ -45,7 +45,7 @@ func (m Message) WriteTo(w io.Writer) (int64, error) {
 	var total int64
 	for _, p := range m {
 		// We cannot write directly to the device because every writing should be a single packet.
-		buf := bufio.NewWriterSize(w, 65)
+		buf := bufio.NewWriterSize(w, hidReportPacketSize)
 
 		// Report ID in our case is always 0.
 		if err := buf.WriteByte(0x00); err != nil {
@@ -114,5 +114,14 @@ func (p *packet) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	return int64(cidCnt + cmdOrSeqCnt + dataLenCnt + dataCnt), nil
+	written := cidCnt + cmdOrSeqCnt + dataLenCnt + dataCnt
+	if paddingLen := hidPacketSize - written; paddingLen > 0 {
+		paddingCnt, err := w.Write(make([]byte, paddingLen))
+		if err != nil {
+			return 0, err
+		}
+		written += paddingCnt
+	}
+
+	return int64(written), nil
 }

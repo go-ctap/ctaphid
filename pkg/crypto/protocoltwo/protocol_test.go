@@ -42,9 +42,9 @@ func TestEncryptDecrypt(t *testing.T) {
 	key, _ := base64.StdEncoding.DecodeString(derivedSecret)
 	badKey := append(key, 0)
 
-	padding := make([]byte, 16)
 	plaintext := []byte("16-byte block...")
 	badPlaintext := []byte("17-byte block...!")
+	longPlaintext := slices.Concat(plaintext, plaintext, plaintext, plaintext)
 
 	// Encrypt with a 65-byte key
 	_, err := Encrypt(badKey, plaintext)
@@ -54,22 +54,24 @@ func TestEncryptDecrypt(t *testing.T) {
 	_, err = Encrypt(key, badPlaintext)
 	assert.Error(t, err)
 
-	// Test encrypt-decrypt with padding
+	// Test encrypt-decrypt with one block
 	{
 		ciphertext, err := Encrypt(key, plaintext)
 		require.NoError(t, err)
 
 		decrypted, err := Decrypt(key, ciphertext)
-		assert.Equal(t, slices.Concat(plaintext, padding), decrypted)
+		require.NoError(t, err)
+		assert.Equal(t, plaintext, decrypted)
 	}
 
-	// Test encrypt-decrypt without padding
+	// Test encrypt-decrypt with multiple blocks
 	{
-		ciphertext, err := Encrypt(key, slices.Concat(plaintext, plaintext))
+		ciphertext, err := Encrypt(key, longPlaintext)
 		require.NoError(t, err)
 
 		decrypted, err := Decrypt(key, ciphertext)
-		assert.Equal(t, slices.Concat(plaintext, plaintext), decrypted)
+		require.NoError(t, err)
+		assert.Equal(t, longPlaintext, decrypted)
 	}
 }
 

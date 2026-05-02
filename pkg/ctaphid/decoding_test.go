@@ -3,6 +3,7 @@ package ctaphid
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,40 @@ func TestMessage_ReadFrom(t *testing.T) {
 	n, err := m.ReadFrom(device)
 	require.NoError(t, err)
 
-	// ReadFrom reads by 64-bytes blocks, at the end zeros will be presented
-	assert.Equal(t, int64(len(bytes.Trim(resp, "\x00"))), n)
+	assert.Equal(t, int64(len(resp)), n)
+}
+
+func TestMessage_ReadFromRejectsInvalidContinuationSequence(t *testing.T) {
+	raw := newRawMessage(t)
+	raw[hidPacketSize+4] = 1
+
+	m := new(Message)
+	_, err := m.ReadFrom(bytes.NewReader(raw))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrInvalidResponseMessage))
+}
+
+func TestMessage_ReadFromRejectsInvalidContinuationCID(t *testing.T) {
+	raw := newRawMessage(t)
+	raw[hidPacketSize] ^= 0xff
+
+	m := new(Message)
+	_, err := m.ReadFrom(bytes.NewReader(raw))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrInvalidResponseMessage))
+}
+
+func newRawMessage(t *testing.T) []byte {
+	t.Helper()
+
+	msg, err := NewMessage(ChannelID{1, 2, 3, 4}, CTAPHID_CBOR, bytes.Repeat([]byte{0xaa}, initPacketDataSize+1))
+	require.NoError(t, err)
+
+	buf := bytes.NewBuffer(nil)
+	for _, p := range msg {
+		_, err := p.WriteTo(buf)
+		require.NoError(t, err)
+	}
+
+	return buf.Bytes()
 }

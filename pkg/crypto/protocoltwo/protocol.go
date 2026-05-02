@@ -68,6 +68,10 @@ func Encrypt(sharedSecret []byte, demPlaintext []byte) ([]byte, error) {
 }
 
 func Decrypt(sharedSecret []byte, demCiphertext []byte) ([]byte, error) {
+	if len(sharedSecret) != 64 {
+		return nil, fmt.Errorf("invalid shared secret length")
+	}
+
 	// Discard the first 32 bytes of the key.
 	// (This selects the AES-key portion of the shared secret.)
 	key := sharedSecret[32:]
@@ -81,9 +85,13 @@ func Decrypt(sharedSecret []byte, demCiphertext []byte) ([]byte, error) {
 		return nil, errors.New("invalid ciphertext")
 	}
 
-	plaintext := make([]byte, 32)
 	iv := demCiphertext[:16]
 	ciphertext := demCiphertext[16:]
+	if len(ciphertext) == 0 || len(ciphertext)%block.BlockSize() != 0 {
+		return nil, errors.New("invalid ciphertext")
+	}
+
+	plaintext := make([]byte, len(ciphertext))
 
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(plaintext, ciphertext)

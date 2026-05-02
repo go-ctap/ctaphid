@@ -3,6 +3,15 @@ package ctaphid
 // Message is a sequence of packets.
 type Message []*packet
 
+const (
+	hidPacketSize                = 64
+	hidReportPacketSize          = hidPacketSize + 1
+	initPacketHeaderSize         = 7
+	continuationPacketHeaderSize = 5
+	initPacketDataSize           = hidPacketSize - initPacketHeaderSize
+	continuationPacketDataSize   = hidPacketSize - continuationPacketHeaderSize
+)
+
 // packet represents CTAP packet.
 type packet struct {
 	cid          ChannelID

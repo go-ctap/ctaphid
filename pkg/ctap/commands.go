@@ -1134,7 +1134,7 @@ func (cl *Client) EnumerateRPs(
 			}
 			cl.logger.Debug("enumerateRPsGetNextRP CBOR request", "hex", hex.EncodeToString(bNext))
 
-			respRawNext, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{0x0A}, bNext))
+			respRawNext, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(command)}, bNext))
 			if err != nil {
 				yield(nil, err)
 				return
@@ -1227,7 +1227,7 @@ func (cl *Client) EnumerateCredentials(
 
 		for i := uint(1); i < respBegin.TotalCredentials; i++ {
 			reqNext := &ctaptypes.AuthenticatorCredentialManagementRequest{
-				SubCommand: ctaptypes.CredentialManagementSubCommandEnumerateRPsGetNextRP,
+				SubCommand: ctaptypes.CredentialManagementSubCommandEnumerateCredentialsGetNextCredential,
 			}
 
 			bNext, err := cl.encMode.Marshal(reqNext)
@@ -1235,14 +1235,14 @@ func (cl *Client) EnumerateCredentials(
 				yield(nil, err)
 				return
 			}
-			cl.logger.Debug("enumerateRPsGetNextRP CBOR request", "hex", hex.EncodeToString(bNext))
+			cl.logger.Debug("enumerateCredentialsGetNextCredential CBOR request", "hex", hex.EncodeToString(bNext))
 
-			respRawNext, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{0x0A}, bNext))
+			respRawNext, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(command)}, bNext))
 			if err != nil {
 				yield(nil, err)
 				return
 			}
-			cl.logger.Debug("enumerateRPsGetNextRP CBOR response", "hex", hex.EncodeToString(respRawNext.Data))
+			cl.logger.Debug("enumerateCredentialsGetNextCredential CBOR response", "hex", hex.EncodeToString(respRawNext.Data))
 
 			var respNext *ctaptypes.AuthenticatorCredentialManagementResponse
 			if err := cbor.Unmarshal(respRawNext.Data, &respNext); err != nil {

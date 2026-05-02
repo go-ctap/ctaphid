@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,14 +18,16 @@ var respPackets = []string{
 func TestNewMessage(t *testing.T) {
 	// Write packets into a buffer
 	buf := bytes.NewBuffer(nil)
+	responsePackets := make([][]byte, 0, len(respPackets))
 	for _, pStr := range respPackets {
 		p, err := base64.StdEncoding.DecodeString(pStr)
 		require.NoError(t, err)
 
-		buf.Write(p)
+		padded := make([]byte, hidPacketSize)
+		copy(padded, p)
+		responsePackets = append(responsePackets, padded)
+		buf.Write(padded)
 	}
-
-	responseBytes := buf.Bytes()
 
 	// Read a message from it
 	m := new(Message)
@@ -39,13 +40,13 @@ func TestNewMessage(t *testing.T) {
 		_, err = m.WriteTo(buf)
 		require.NoError(t, err)
 
-		// Add HID paging byte
-		writtenBytes := make([]byte, 0)
-		chunks := lo.Chunk(buf.Bytes(), 65)
-		for _, chunk := range chunks {
-			writtenBytes = append(writtenBytes, bytes.TrimLeft(chunk, "\x00")...)
-		}
+		writtenBytes := buf.Bytes()
+		require.Len(t, writtenBytes, len(responsePackets)*hidReportPacketSize)
 
-		assert.Equal(t, responseBytes, writtenBytes)
+		for i, expectedPacket := range responsePackets {
+			chunk := writtenBytes[i*hidReportPacketSize : (i+1)*hidReportPacketSize]
+			assert.Equal(t, byte(0), chunk[0])
+			assert.Equal(t, expectedPacket, chunk[1:])
+		}
 	}
 }

@@ -38,13 +38,21 @@ func Encrypt(sharedSecret []byte, demPlaintext []byte) ([]byte, error) {
 }
 
 func Decrypt(sharedSecret []byte, demCiphertext []byte) ([]byte, error) {
+	if len(sharedSecret) != 32 {
+		return nil, fmt.Errorf("invalid shared secret length")
+	}
+
 	block, err := aes.NewCipher(sharedSecret)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create new AES cipher: %w", err)
 	}
 
+	if len(demCiphertext) == 0 || len(demCiphertext)%block.BlockSize() != 0 {
+		return nil, fmt.Errorf("invalid ciphertext length")
+	}
+
 	iv := make([]byte, block.BlockSize())
-	plaintext := make([]byte, 32)
+	plaintext := make([]byte, len(demCiphertext))
 
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(plaintext, demCiphertext)
