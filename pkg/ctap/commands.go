@@ -1449,16 +1449,14 @@ func (cl *Client) LargeBlobs(
 		return nil, err
 	}
 
+	var resp *ctaptypes.AuthenticatorLargeBlobsResponse
 	if get > 0 {
-		var resp *ctaptypes.AuthenticatorLargeBlobsResponse
 		if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
 			return nil, err
 		}
-
-		return resp, nil
 	}
 
-	return nil, nil
+	return resp, nil
 }
 
 func (cl *Client) EnableEnterpriseAttestation(
