@@ -99,7 +99,7 @@ func (vv Versions) IsPreviewOnly() bool {
 	fidoTwo := false
 	fidoTwoOnePre := false
 	fidoTwoOne := false
-	fidoTwoTwo := false
+	fidoTwoThree := false
 
 	for _, v := range vv {
 		switch v {
@@ -109,12 +109,12 @@ func (vv Versions) IsPreviewOnly() bool {
 			fidoTwoOnePre = true
 		case FIDO_2_1:
 			fidoTwoOne = true
-		case FIDO_2_2:
-			fidoTwoTwo = true
+		case FIDO_2_3:
+			fidoTwoThree = true
 		}
 	}
 
-	return fidoTwo && (!fidoTwoOne && !fidoTwoTwo && fidoTwoOnePre)
+	return fidoTwo && (!fidoTwoOne && !fidoTwoThree && fidoTwoOnePre)
 }
 
 func (r *AuthenticatorMakeCredentialResponse) PackedAttestationStatementFormat() (*webauthntypes.PackedAttestationStatementFormat, bool) {

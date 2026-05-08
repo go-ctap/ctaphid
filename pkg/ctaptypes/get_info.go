@@ -15,7 +15,7 @@ const (
 	FIDO_2_0     Version = "FIDO_2_0"
 	FIDO_2_1_PRE Version = "FIDO_2_1_PRE"
 	FIDO_2_1     Version = "FIDO_2_1"
-	FIDO_2_2     Version = "FIDO_2_2"
+	FIDO_2_3     Version = "FIDO_2_3"
 	U2F_V2       Version = "U2F_V2"
 )
 
@@ -48,10 +48,12 @@ type AuthenticatorGetInfoResponse struct {
 	VendorPrototypeConfigCommands    []uint                                        `cbor:"21,keyasint"`
 	AttestationFormats               []string                                      `cbor:"22,keyasint"`
 	UvCountSinceLastPinEntry         uint                                          `cbor:"23,keyasint"`
-	LongTouchForReset                bool                                          `cbor:"24,keyasint"`
+	LongTouchForReset                *bool                                         `cbor:"24,keyasint"`
 	EncIdentifier                    string                                        `cbor:"25,keyasint"`
 	TransportsForReset               []string                                      `cbor:"26,keyasint"`
-	PinComplexityPolicy              bool                                          `cbor:"27,keyasint"`
+	PinComplexityPolicy              *bool                                         `cbor:"27,keyasint"`
 	PinComplexityPolicyURL           string                                        `cbor:"28,keyasint"`
 	MaxPINLength                     uint                                          `cbor:"29,keyasint"`
+	EncCredStoreState                string                                        `cbor:"30,keyasint"`
+	AuthenticatorConfigCommands      []uint                                        `cbor:"31,keyasint"`
 }
