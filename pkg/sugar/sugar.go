@@ -75,7 +75,8 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 
 		info := dev.GetInfo()
 		if !info.Versions.Supports(ctaptypes.FIDO_2_1) &&
-			!info.Versions.Supports(ctaptypes.FIDO_2_1_PRE) {
+			!info.Versions.Supports(ctaptypes.FIDO_2_1_PRE) &&
+			!info.Versions.Supports(ctaptypes.FIDO_2_3) {
 			// We need to close this device because it's not supported.
 			_ = dev.Close()
 			continue
