@@ -2,10 +2,9 @@ package device
 
 import (
 	"github.com/go-ctap/ctaphid/pkg/ctap"
+	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
 	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
 )
-
-const defaultMinPINCodePoints uint = 4
 
 func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {
 	if len(input.Salt1) != 32 {
@@ -19,14 +18,9 @@ func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {
 }
 
 func (d *Device) normalizeAndValidateCurrentPIN(pin string) (string, error) {
-	return ctap.NormalizeAndValidatePIN(pin, defaultMinPINCodePoints)
+	return ctap.NormalizeAndValidatePIN(pin, ctaptypes.DefaultMinPINCodePoints)
 }
 
 func (d *Device) normalizeAndValidateNewPIN(pin string) (string, error) {
-	minPINLength := defaultMinPINCodePoints
-	if d.info != nil && d.info.MinPinLength > minPINLength {
-		minPINLength = d.info.MinPinLength
-	}
-
-	return ctap.NormalizeAndValidatePIN(pin, minPINLength)
+	return ctap.NormalizeAndValidatePIN(pin, d.info.EffectiveMinPINLength())
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/go-ctap/ctaphid/pkg/ctaphid"
 	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
 	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -188,7 +189,7 @@ func TestSetLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 	fake := newScriptedDevice(t, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols:          []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
-		MaxSerializedLargeBlobArray: 2048,
+		MaxSerializedLargeBlobArray: lo.ToPtr(uint(2048)),
 		Options: map[ctaptypes.Option]bool{
 			ctaptypes.OptionLargeBlobs: true,
 		},
@@ -209,6 +210,21 @@ func TestSetLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 	require.True(t, ok)
 	assert.Len(t, set, 960)
 	assert.Equal(t, uint64(0), request[uint64(3)])
+}
+
+func TestSetLargeBlobsRequiresReportedMaxSerializedLargeBlobArray(t *testing.T) {
+	fake := newScriptedDevice(t)
+	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
+		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
+		Options: map[ctaptypes.Option]bool{
+			ctaptypes.OptionLargeBlobs: true,
+		},
+	})
+
+	err := d.SetLargeBlobs(make([]byte, 32), []*ctaptypes.LargeBlob{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "maxSerializedLargeBlobArray")
+	assert.Empty(t, fake.writes.Bytes())
 }
 
 func TestCredentialManagementUnsupportedIteratorsReturnBeforeCommand(t *testing.T) {
@@ -300,6 +316,39 @@ func TestMakeCredentialCredPropsOutputDependsOnCredPropsInput(t *testing.T) {
 	assert.True(t, resp.ExtensionOutputs.CreateCredentialPropertiesOutputs.CredentialProperties.ResidentKey)
 }
 
+func TestMakeCredentialRequiresMaxCredBlobLengthWhenCredBlobExtensionReported(t *testing.T) {
+	fake := newScriptedDevice(t)
+	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
+		Extensions: []webauthntypes.ExtensionIdentifier{
+			webauthntypes.ExtensionIdentifierCredentialBlob,
+		},
+		Options: map[ctaptypes.Option]bool{
+			ctaptypes.OptionMakeCredentialUvNotRequired: true,
+		},
+	})
+
+	_, err := d.MakeCredential(
+		nil,
+		[]byte("client-data"),
+		webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com", Name: "Example"},
+		webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id"), Name: "user"},
+		[]webauthntypes.PublicKeyCredentialParameters{{
+			Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+			Algorithm: -7,
+		}},
+		nil,
+		&webauthntypes.CreateAuthenticationExtensionsClientInputs{
+			CreateCredentialBlobInputs: &webauthntypes.CreateCredentialBlobInputs{CredBlob: []byte("blob")},
+		},
+		nil,
+		0,
+		nil,
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "maxCredBlobLength")
+	assert.Empty(t, fake.writes.Bytes())
+}
+
 func TestMissingPinUvAuthProtocolsReturnsError(t *testing.T) {
 	fake := newScriptedDevice(t)
 	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
@@ -343,7 +392,7 @@ func TestSetPINValidatesPINBeforeCommand(t *testing.T) {
 		fake := newScriptedDevice(t)
 		d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
 			PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
-			MinPinLength:       8,
+			MinPinLength:       lo.ToPtr(uint(8)),
 			Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: false},
 		})
 
@@ -358,7 +407,7 @@ func TestChangePINValidatesNewPINBeforeCommand(t *testing.T) {
 	fake := newScriptedDevice(t)
 	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
-		MinPinLength:       8,
+		MinPinLength:       lo.ToPtr(uint(8)),
 		Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: true},
 	})
 

@@ -43,8 +43,6 @@ const (
 	CtxKeyUseNamedPipe CtxKey = "useNamedPipe"
 )
 
-const defaultMaxMsgSize = 1024
-
 func (d *Device) requirePinUvAuthProtocol() (ctaptypes.PinUvAuthProtocol, error) {
 	if d.pinUvAuthProtocol == 0 {
 		return 0, newErrorMessage(ErrNotSupported, "device didn't report pinUvAuthProtocols")
@@ -68,12 +66,7 @@ func (d *Device) pinUvAuthProtocolWithKeyAgreement() (ctaptypes.PinUvAuthProtoco
 }
 
 func (d *Device) maxFragmentLength() uint {
-	maxMsgSize := d.info.MaxMsgSize
-	if maxMsgSize == 0 {
-		maxMsgSize = defaultMaxMsgSize
-	}
-
-	return maxMsgSize - 64
+	return d.info.EffectiveMaxMsgSize() - 64
 }
 
 // New creates a new Device instance from a given HID path.
@@ -399,10 +392,17 @@ func (d *Device) MakeCredential(
 			return nil, newErrorMessage(ErrNotSupported, "device doesn't support credBlob extension")
 		}
 
-		if uint(len(extInputs.CredBlob)) > d.info.MaxCredBlobLength {
+		maxCredBlobLength, ok := d.info.MaxCredBlobLengthValue()
+		if !ok {
 			return nil, newErrorMessage(
 				ErrNotSupported,
-				fmt.Sprintf("credBlob length must be less than %d bytes", d.info.MaxCredBlobLength),
+				"device reports credBlob extension without maxCredBlobLength",
+			)
+		}
+		if uint(len(extInputs.CredBlob)) > maxCredBlobLength {
+			return nil, newErrorMessage(
+				ErrNotSupported,
+				fmt.Sprintf("credBlob length must be less than %d bytes", maxCredBlobLength),
 			)
 		}
 
@@ -1527,12 +1527,16 @@ func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBl
 
 	set = slices.Concat(set, hash[:16])
 
-	if uint(len(set)) > d.info.MaxSerializedLargeBlobArray {
+	maxSerializedLargeBlobArray, ok := d.info.MaxSerializedLargeBlobArrayValue()
+	if !ok {
+		return newErrorMessage(ErrNotSupported, "device reports largeBlobs without maxSerializedLargeBlobArray")
+	}
+	if uint(len(set)) > maxSerializedLargeBlobArray {
 		return newErrorMessage(
 			ErrLargeBlobsTooBig,
 			fmt.Sprintf(
 				"this device max serialized large blob size is %db while you are trying to save %db",
-				d.info.MaxSerializedLargeBlobArray,
+				maxSerializedLargeBlobArray,
 				len(set),
 			),
 		)

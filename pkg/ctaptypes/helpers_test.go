@@ -3,8 +3,60 @@ package ctaptypes
 import (
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAuthenticatorGetInfoResponsePreservesOptionalScalarPresence(t *testing.T) {
+	raw, err := cbor.Marshal(map[uint64]any{
+		4:  map[string]bool{string(OptionClientPIN): false},
+		5:  uint64(0),
+		12: false,
+	})
+	require.NoError(t, err)
+
+	var resp AuthenticatorGetInfoResponse
+	require.NoError(t, cbor.Unmarshal(raw, &resp))
+
+	require.NotNil(t, resp.MaxMsgSize)
+	require.Equal(t, uint(0), *resp.MaxMsgSize)
+	require.NotNil(t, resp.ForcePinChange)
+	require.False(t, *resp.ForcePinChange)
+
+	clientPIN, ok := resp.Options[OptionClientPIN]
+	require.True(t, ok)
+	require.False(t, clientPIN)
+
+	_, ok = resp.Options[OptionUserVerification]
+	require.False(t, ok)
+	require.Nil(t, resp.MinPinLength)
+	require.Nil(t, resp.LongTouchForReset)
+}
+
+func TestAuthenticatorGetInfoResponseEffectiveDefaults(t *testing.T) {
+	var resp AuthenticatorGetInfoResponse
+	require.Equal(t, DefaultMaxMsgSize, resp.EffectiveMaxMsgSize())
+	require.Equal(t, DefaultMinPINCodePoints, resp.EffectiveMinPINLength())
+
+	resp.MaxMsgSize = lo.ToPtr(uint(2048))
+	resp.MinPinLength = lo.ToPtr(uint(8))
+
+	require.Equal(t, uint(2048), resp.EffectiveMaxMsgSize())
+	require.Equal(t, uint(8), resp.EffectiveMinPINLength())
+}
+
+func TestAuthenticatorGetInfoResponseMaxCredBlobLengthPresence(t *testing.T) {
+	var resp AuthenticatorGetInfoResponse
+	value, ok := resp.MaxCredBlobLengthValue()
+	require.False(t, ok)
+	require.Equal(t, uint(0), value)
+
+	resp.MaxCredBlobLength = lo.ToPtr(uint(0))
+	value, ok = resp.MaxCredBlobLengthValue()
+	require.True(t, ok)
+	require.Equal(t, uint(0), value)
+}
 
 func TestParseGetAssertionAuthDataRejectsShortData(t *testing.T) {
 	for _, data := range [][]byte{
