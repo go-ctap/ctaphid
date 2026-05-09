@@ -76,8 +76,8 @@ const (
 // PublicKeyCredentialRpEntity is used to supply additional Relying Party attributes when creating a new credential.
 // https://www.w3.org/TR/webauthn-3/#dictdef-publickeycredentialrpentity
 type PublicKeyCredentialRpEntity struct {
-	ID   string `cbor:"id"`
-	Name string `cbor:"name,omitempty"`
+	ID   string `cbor:"id" json:"id"`
+	Name string `cbor:"name,omitempty" json:"name,omitempty"`
 }
 
 // PublicKeyCredentialUserEntity is used to supply additional user account attributes when creating a new credential.
@@ -92,42 +92,42 @@ type PublicKeyCredentialUserEntity struct {
 // PublicKeyCredentialDescriptor identifies a specific public key credential.
 // https://www.w3.org/TR/webauthn-3/#dictdef-publickeycredentialdescriptor
 type PublicKeyCredentialDescriptor struct {
-	Type       PublicKeyCredentialType  `cbor:"type"`
-	ID         []byte                   `cbor:"id"`
-	Transports []AuthenticatorTransport `cbor:"transports,omitempty"`
+	Type       PublicKeyCredentialType  `cbor:"type" json:"type"`
+	ID         []byte                   `cbor:"id" json:"id"`
+	Transports []AuthenticatorTransport `cbor:"transports,omitempty" json:"transports,omitempty"`
 }
 
 // PublicKeyCredentialParameters is used to supply additional parameters when creating a new credential.
 // https://www.w3.org/TR/webauthn-3/#dictdef-publickeycredentialparameters
 type PublicKeyCredentialParameters struct {
-	Type      PublicKeyCredentialType `cbor:"type"`
-	Algorithm key.Alg                 `cbor:"alg"`
+	Type      PublicKeyCredentialType `cbor:"type" json:"type"`
+	Algorithm key.Alg                 `cbor:"alg" json:"alg"`
 }
 
 // PackedAttestationStatementFormat is a WebAuthn optimized attestation statement format.
 // https://www.w3.org/TR/webauthn-3/#sctn-packed-attestation
 type PackedAttestationStatementFormat struct {
-	Algorithm key.Alg  `cbor:"alg"`
-	Signature []byte   `cbor:"sig"`
-	X509Chain [][]byte `cbor:"x5c"`
+	Algorithm key.Alg  `cbor:"alg" json:"alg"`
+	Signature []byte   `cbor:"sig" json:"sig"`
+	X509Chain [][]byte `cbor:"x5c" json:"x5c"`
 }
 
 // FIDOU2FAttestationStatementFormat is attestation statement format is used with FIDO U2F authenticators.
 // https://www.w3.org/TR/webauthn-3/#sctn-fido-u2f-attestation
 type FIDOU2FAttestationStatementFormat struct {
-	X509Chain [][]byte `cbor:"x5c"`
-	Signature []byte   `cbor:"sig"`
+	X509Chain [][]byte `cbor:"x5c" json:"x5c"`
+	Signature []byte   `cbor:"sig" json:"sig"`
 }
 
 // TPMAttestationStatementFormat is generally used by authenticators that use a Trusted Platform Module
 // as their cryptographic engine.
 // https://www.w3.org/TR/webauthn-3/#sctn-tpm-attestation
 type TPMAttestationStatementFormat struct {
-	Version   string   `cbor:"ver"`
-	Algorithm key.Alg  `cbor:"alg"`
-	X509Chain [][]byte `cbor:"x5c"`
-	AIKCert   []byte   `cbor:"aikCert"`
-	Signature []byte   `cbor:"sig"`
-	CertInfo  []byte   `cbor:"certInfo"` // TPMS_ATTEST structure
-	PubArea   []byte   `cbor:"pubArea"`  // TPMT_PUBLIC structure
+	Version   string   `cbor:"ver" json:"ver"`
+	Algorithm key.Alg  `cbor:"alg" json:"alg"`
+	X509Chain [][]byte `cbor:"x5c" json:"x5c"`
+	AIKCert   []byte   `cbor:"aikCert" json:"aikCert"`
+	Signature []byte   `cbor:"sig" json:"sig"`
+	CertInfo  []byte   `cbor:"certInfo" json:"certInfo"` // TPMS_ATTEST structure
+	PubArea   []byte   `cbor:"pubArea" json:"pubArea"`   // TPMT_PUBLIC structure
 }

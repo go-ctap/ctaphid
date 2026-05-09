@@ -392,7 +392,7 @@ func TestSetPINValidatesPINBeforeCommand(t *testing.T) {
 		fake := newScriptedDevice(t)
 		d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
 			PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
-			MinPinLength:       lo.ToPtr(uint(8)),
+			MinPINLength:       lo.ToPtr(uint(8)),
 			Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: false},
 		})
 
@@ -407,7 +407,7 @@ func TestChangePINValidatesNewPINBeforeCommand(t *testing.T) {
 	fake := newScriptedDevice(t)
 	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
-		MinPinLength:       lo.ToPtr(uint(8)),
+		MinPINLength:       lo.ToPtr(uint(8)),
 		Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: true},
 	})
 

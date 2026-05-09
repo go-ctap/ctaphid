@@ -21,8 +21,8 @@ func TestAuthenticatorGetInfoResponsePreservesOptionalScalarPresence(t *testing.
 
 	require.NotNil(t, resp.MaxMsgSize)
 	require.Equal(t, uint(0), *resp.MaxMsgSize)
-	require.NotNil(t, resp.ForcePinChange)
-	require.False(t, *resp.ForcePinChange)
+	require.NotNil(t, resp.ForcePINChange)
+	require.False(t, *resp.ForcePINChange)
 
 	clientPIN, ok := resp.Options[OptionClientPIN]
 	require.True(t, ok)
@@ -30,7 +30,7 @@ func TestAuthenticatorGetInfoResponsePreservesOptionalScalarPresence(t *testing.
 
 	_, ok = resp.Options[OptionUserVerification]
 	require.False(t, ok)
-	require.Nil(t, resp.MinPinLength)
+	require.Nil(t, resp.MinPINLength)
 	require.Nil(t, resp.LongTouchForReset)
 }
 
@@ -40,7 +40,7 @@ func TestAuthenticatorGetInfoResponseEffectiveDefaults(t *testing.T) {
 	require.Equal(t, DefaultMinPINCodePoints, resp.EffectiveMinPINLength())
 
 	resp.MaxMsgSize = lo.ToPtr(uint(2048))
-	resp.MinPinLength = lo.ToPtr(uint(8))
+	resp.MinPINLength = lo.ToPtr(uint(8))
 
 	require.Equal(t, uint(2048), resp.EffectiveMaxMsgSize())
 	require.Equal(t, uint(8), resp.EffectiveMinPINLength())

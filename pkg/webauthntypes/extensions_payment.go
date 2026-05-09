@@ -1,20 +1,20 @@
 package webauthntypes
 
 type PaymentEntityLogo struct {
-	URL   string `cbor:"url"`
-	Label string `cbor:"label"`
+	URL   string `cbor:"url" json:"url"`
+	Label string `cbor:"label" json:"label"`
 }
 
 type PaymentCurrencyAmount struct {
-	Currency string `cbor:"currency"`
-	Value    string `cbor:"value"`
+	Currency string `cbor:"currency" json:"currency"`
+	Value    string `cbor:"value" json:"value"`
 }
 
 type PaymentCredentialInstrument struct {
-	DisplayName     string `cbor:"displayName"`
-	Icon            string `cbor:"icon"`
-	IconMustBeShown string `cbor:"iconMustBeShown,omitempty"` // should default to true
-	Details         string `cbor:"details,omitempty"`
+	DisplayName     string `cbor:"displayName" json:"displayName"`
+	Icon            string `cbor:"icon" json:"icon"`
+	IconMustBeShown string `cbor:"iconMustBeShown,omitempty" json:"iconMustBeShown,omitempty"` // should default to true
+	Details         string `cbor:"details,omitempty" json:"details,omitempty"`
 }
 
 type AuthenticationExtensionsPaymentInputs struct {
@@ -34,7 +34,7 @@ type PaymentInputs struct {
 }
 
 type BrowserBoundSignature struct {
-	Signature []byte `cbor:"signature"`
+	Signature []byte `cbor:"signature" json:"signature"`
 }
 
 type AuthenticationExtensionsPaymentOutputs struct {

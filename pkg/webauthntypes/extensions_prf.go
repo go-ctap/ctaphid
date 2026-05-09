@@ -1,13 +1,13 @@
 package webauthntypes
 
 type AuthenticationExtensionsPRFValues struct {
-	First  []byte `cbor:"first"`
-	Second []byte `cbor:"second,omitempty"`
+	First  []byte `cbor:"first" json:"first"`
+	Second []byte `cbor:"second,omitempty" json:"second,omitempty"`
 }
 
 type AuthenticationExtensionsPRFInputs struct {
-	Eval             *AuthenticationExtensionsPRFValues           `cbor:"eval,omitempty"`
-	EvalByCredential map[string]AuthenticationExtensionsPRFValues `cbor:"evalByCredential,omitempty"`
+	Eval             *AuthenticationExtensionsPRFValues           `cbor:"eval,omitempty" json:"eval,omitempty"`
+	EvalByCredential map[string]AuthenticationExtensionsPRFValues `cbor:"evalByCredential,omitempty" json:"evalByCredential,omitempty"`
 }
 
 type PRFInputs struct {
