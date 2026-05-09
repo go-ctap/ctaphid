@@ -37,7 +37,7 @@ type AuthenticatorGetInfoResponse struct {
 	MaxMsgSize                       *uint                                         `cbor:"5,keyasint"`
 	PinUvAuthProtocols               []PinUvAuthProtocol                           `cbor:"6,keyasint"`
 	MaxCredentialCountInList         *uint                                         `cbor:"7,keyasint"`
-	MaxCredentialLength              *uint                                         `cbor:"8,keyasint"`
+	MaxCredentialIDLength            *uint                                         `cbor:"8,keyasint"`
 	Transports                       []string                                      `cbor:"9,keyasint"`
 	Algorithms                       []webauthntypes.PublicKeyCredentialParameters `cbor:"10,keyasint"`
 	MaxSerializedLargeBlobArray      *uint                                         `cbor:"11,keyasint"`
