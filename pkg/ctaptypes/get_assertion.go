@@ -38,13 +38,13 @@ type GetAssertionAuthData struct {
 	Extensions             *GetExtensionOutputs
 }
 
-func ParseGetAssertionAuthData(data []byte) (*GetAssertionAuthData, error) {
+func ParseGetAssertionAuthData(data []byte) (GetAssertionAuthData, error) {
 	d, err := parseAuthData(data)
 	if err != nil {
-		return nil, err
+		return GetAssertionAuthData{}, err
 	}
 
-	getAssertionAuthData := &GetAssertionAuthData{
+	getAssertionAuthData := GetAssertionAuthData{
 		RPIDHash:               d.RPIDHash,
 		Flags:                  d.Flags,
 		SignCount:              d.SignCount,
@@ -54,7 +54,7 @@ func ParseGetAssertionAuthData(data []byte) (*GetAssertionAuthData, error) {
 	if d.Extensions != nil {
 		if err := cbor.NewDecoder(bytes.NewReader(d.Extensions)).
 			Decode(&getAssertionAuthData.Extensions); err != nil {
-			return nil, err
+			return GetAssertionAuthData{}, err
 		}
 	}
 

@@ -116,22 +116,22 @@ func Authenticate(number ctaptypes.PinUvAuthProtocol, sharedSecret []byte, messa
 	}
 }
 
-func EncryptLargeBlob(key []byte, origData []byte) (*ctaptypes.LargeBlob, error) {
+func EncryptLargeBlob(key []byte, origData []byte) (ctaptypes.LargeBlob, error) {
 	plaintext, err := compress(origData)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return ctaptypes.LargeBlob{}, err
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, err
+		return ctaptypes.LargeBlob{}, err
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
+		return ctaptypes.LargeBlob{}, err
 	}
 
 	origSize := len(origData)
@@ -139,14 +139,14 @@ func EncryptLargeBlob(key []byte, origData []byte) (*ctaptypes.LargeBlob, error)
 	binary.LittleEndian.PutUint64(origSizeBin, uint64(origSize))
 
 	ciphertext := gcm.Seal(nil, nonce, plaintext, slices.Concat([]byte("blob"), origSizeBin))
-	return &ctaptypes.LargeBlob{
+	return ctaptypes.LargeBlob{
 		Ciphertext: ciphertext,
 		Nonce:      nonce,
 		OrigSize:   uint(origSize),
 	}, nil
 }
 
-func DecryptLargeBlob(key []byte, blob *ctaptypes.LargeBlob) ([]byte, error) {
+func DecryptLargeBlob(key []byte, blob ctaptypes.LargeBlob) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

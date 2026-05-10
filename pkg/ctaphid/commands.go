@@ -27,25 +27,25 @@ func ensureResponseCID(msg Message, cid ChannelID) error {
 	return nil
 }
 
-func CBOR(dev io.ReadWriter, cid ChannelID, data []byte) (*CBORResponse, error) {
+func CBOR(dev io.ReadWriter, cid ChannelID, data []byte) (CBORResponse, error) {
 	msg, err := NewMessage(cid, CTAPHID_CBOR, data)
 	if err != nil {
-		return nil, err
+		return CBORResponse{}, err
 	}
 
 	if _, err := msg.WriteTo(dev); err != nil {
-		return nil, err
+		return CBORResponse{}, err
 	}
 
 read:
 	for {
 		respMsg := make(Message, 0)
 		if _, err := respMsg.ReadFrom(dev); err != nil {
-			return nil, err
+			return CBORResponse{}, err
 		}
 
 		if err := ensureResponseCID(respMsg, cid); err != nil {
-			return nil, err
+			return CBORResponse{}, err
 		}
 
 		var respData []byte
@@ -54,32 +54,32 @@ read:
 				switch p.command {
 				case CTAPHID_CBOR:
 					if err := ensureDataLen(p.data, 1); err != nil {
-						return nil, err
+						return CBORResponse{}, err
 					}
 					command := ctaptypes.Command(data[0])
 					code := StatusCode(p.data[0])
 					if code != CTAP2_OK {
-						return nil, newCTAPError(command, code)
+						return CBORResponse{}, newCTAPError(command, code)
 					}
 				case CTAPHID_ERROR:
 					if err := ensureDataLen(p.data, 1); err != nil {
-						return nil, err
+						return CBORResponse{}, err
 					}
-					return nil, errors.New(Error(p.data[0]).String())
+					return CBORResponse{}, errors.New(Error(p.data[0]).String())
 				case CTAPHID_KEEPALIVE:
 					continue read
 				default:
-					return nil, ErrUnexpectedCommand
+					return CBORResponse{}, ErrUnexpectedCommand
 				}
 			}
 
 			respData = slices.Concat(respData, p.data)
 		}
 		if err := ensureDataLen(respData, 1); err != nil {
-			return nil, err
+			return CBORResponse{}, err
 		}
 
-		r := &CBORResponse{
+		r := CBORResponse{
 			StatusCode: StatusCode(respData[0]),
 			Data:       respData[1:],
 		}
@@ -88,24 +88,24 @@ read:
 	}
 }
 
-func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (*InitResponse, error) {
+func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (InitResponse, error) {
 	msg, err := NewMessage(cid, CTAPHID_INIT, nonce)
 	if err != nil {
-		return nil, err
+		return InitResponse{}, err
 	}
 
 	if _, err := msg.WriteTo(dev); err != nil {
-		return nil, err
+		return InitResponse{}, err
 	}
 
 	for {
 		respMsg := make(Message, 0)
 		if _, err := respMsg.ReadFrom(dev); err != nil {
-			return nil, err
+			return InitResponse{}, err
 		}
 
 		if err := ensureResponseCID(respMsg, cid); err != nil {
-			return nil, err
+			return InitResponse{}, err
 		}
 
 		p := respMsg[0]
@@ -113,13 +113,13 @@ func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (*InitResponse, error)
 		switch p.command {
 		case CTAPHID_INIT:
 			if err := ensureDataLen(p.data, 17); err != nil {
-				return nil, err
+				return InitResponse{}, err
 			}
 			if subtle.ConstantTimeCompare(p.data[:8], nonce) != 1 {
-				return nil, errors.New("invalid nonce")
+				return InitResponse{}, errors.New("invalid nonce")
 			}
 
-			r := &InitResponse{
+			r := InitResponse{
 				Nonce:                            p.data[:8],
 				CID:                              ChannelID(p.data[8 : 8+4]),
 				CTAPHIDProtocolVersionIdentifier: p.data[12],
@@ -132,36 +132,36 @@ func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (*InitResponse, error)
 			return r, nil
 		case CTAPHID_ERROR:
 			if err := ensureDataLen(p.data, 1); err != nil {
-				return nil, err
+				return InitResponse{}, err
 			}
-			return nil, errors.New(Error(p.data[0]).String())
+			return InitResponse{}, errors.New(Error(p.data[0]).String())
 		case CTAPHID_KEEPALIVE:
 			continue
 		default:
-			return nil, ErrUnexpectedCommand
+			return InitResponse{}, ErrUnexpectedCommand
 		}
 	}
 }
 
-func Ping(dev io.ReadWriter, cid ChannelID, ping []byte) (*PingResponse, error) {
+func Ping(dev io.ReadWriter, cid ChannelID, ping []byte) (PingResponse, error) {
 	msg, err := NewMessage(cid, CTAPHID_PING, ping)
 	if err != nil {
-		return nil, err
+		return PingResponse{}, err
 	}
 
 	if _, err := msg.WriteTo(dev); err != nil {
-		return nil, err
+		return PingResponse{}, err
 	}
 
 read:
 	for {
 		respMsg := make(Message, 0)
 		if _, err := respMsg.ReadFrom(dev); err != nil {
-			return nil, err
+			return PingResponse{}, err
 		}
 
 		if err := ensureResponseCID(respMsg, cid); err != nil {
-			return nil, err
+			return PingResponse{}, err
 		}
 
 		var pong []byte
@@ -171,20 +171,20 @@ read:
 				case CTAPHID_PING:
 				case CTAPHID_ERROR:
 					if err := ensureDataLen(p.data, 1); err != nil {
-						return nil, err
+						return PingResponse{}, err
 					}
-					return nil, errors.New(Error(p.data[0]).String())
+					return PingResponse{}, errors.New(Error(p.data[0]).String())
 				case CTAPHID_KEEPALIVE:
 					continue read
 				default:
-					return nil, ErrUnexpectedCommand
+					return PingResponse{}, ErrUnexpectedCommand
 				}
 			}
 
 			pong = slices.Concat(pong, p.data)
 		}
 
-		r := &PingResponse{
+		r := PingResponse{
 			Bytes: pong,
 		}
 

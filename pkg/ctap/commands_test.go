@@ -239,7 +239,7 @@ func TestGetAssertionRequestShapeAndPINAuthParam(t *testing.T) {
 		nil,
 	) {
 		require.NoError(t, err)
-		require.NotNil(t, assertion)
+		require.NotNil(t, assertion.AuthData)
 		assertions++
 	}
 	require.Equal(t, 1, assertions)
@@ -363,7 +363,7 @@ func TestLargeBlobsRequestShapeAndPINAuthParam(t *testing.T) {
 
 	resp, err := NewClient().LargeBlobs(fake, testCID, ctaptypes.PinUvAuthProtocolOne, token, 0, set, offset, length)
 	require.NoError(t, err)
-	require.Nil(t, resp)
+	require.Empty(t, resp.Config)
 
 	command, request := firstCTAPRequestMap(t, fake)
 	assert.Equal(t, ctaptypes.AuthenticatorLargeBlobs, command)

@@ -55,7 +55,7 @@ func main() {
 		metadata.MaxPossibleRemainingResidentCredentialsCount,
 	)
 
-	rps := make([]*ctaptypes.AuthenticatorCredentialManagementResponse, 0)
+	rps := make([]ctaptypes.AuthenticatorCredentialManagementResponse, 0)
 	for rp, err := range dev.EnumerateRPs(token) {
 		if err != nil {
 			panic(err)
@@ -64,7 +64,7 @@ func main() {
 		rps = append(rps, rp)
 	}
 
-	creds := make([]*ctaptypes.AuthenticatorCredentialManagementResponse, 0)
+	creds := make([]ctaptypes.AuthenticatorCredentialManagementResponse, 0)
 	for i, rp := range rps {
 		for cred, err := range dev.EnumerateCredentials(token, rp.RPIDHash) {
 			if err != nil {

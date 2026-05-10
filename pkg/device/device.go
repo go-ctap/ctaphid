@@ -111,7 +111,7 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.info = info
+	d.info = &info
 	if len(info.PinUvAuthProtocols) > 0 {
 		d.pinUvAuthProtocol = info.PinUvAuthProtocols[0]
 	}
@@ -185,13 +185,13 @@ func (d *Device) MakeCredential(
 	options map[ctaptypes.Option]bool,
 	enterpriseAttestation uint,
 	attestationFormatsPreference []webauthntypes.AttestationStatementFormatIdentifier,
-) (*ctaptypes.AuthenticatorMakeCredentialResponse, error) {
+) (ctaptypes.AuthenticatorMakeCredentialResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	notRequired, ok := d.info.Options[ctaptypes.OptionMakeCredentialUvNotRequired]
 	if (!ok || !notRequired) && pinUvAuthToken == nil {
-		return nil, ErrPinUvAuthTokenRequired
+		return ctaptypes.AuthenticatorMakeCredentialResponse{}, ErrPinUvAuthTokenRequired
 	}
 
 	var (
@@ -206,17 +206,17 @@ func (d *Device) MakeCredential(
 	}
 
 	if extInputs.LargeBlobInputs != nil {
-		return nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet")
+		return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet")
 	}
 
 	if extInputs.CreateHMACSecretMCInputs != nil && extInputs.PRFInputs != nil {
-		return nil, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time")
+		return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time")
 	}
 
 	// hmac-secret
 	if extInputs.CreateHMACSecretInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecret) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret extension")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret extension")
 		}
 
 		extensions.CreateHMACSecretInput = &ctaptypes.CreateHMACSecretInput{
@@ -227,10 +227,10 @@ func (d *Device) MakeCredential(
 	// hmac-secret-mc
 	if extInputs.CreateHMACSecretMCInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecretMC) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret-mc extension")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support hmac-secret-mc extension")
 		}
 		if err := validateHMACGetSecretSalts(extInputs.CreateHMACSecretMCInputs.HMACGetSecret); err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 		var (
 			err          error
@@ -238,7 +238,7 @@ func (d *Device) MakeCredential(
 		)
 		pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		salt := slices.Concat(
@@ -248,18 +248,18 @@ func (d *Device) MakeCredential(
 
 		protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		var platformCoseKey key.Key
 		platformCoseKey, sharedSecret, err = protocol.Encapsulate(keyAgreement)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		saltEnc, err := protocol.Encrypt(sharedSecret, salt)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		saltAuth := crypto.Authenticate(
@@ -284,15 +284,15 @@ func (d *Device) MakeCredential(
 	// prf
 	if extInputs.PRFInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierHMACSecretMC) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support prf extension during registration")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support prf extension during registration")
 		}
 
 		if extInputs.PRF.EvalByCredential != nil {
-			return nil, newErrorMessage(ErrNotSupported, "evalByCredential is not supported during registration")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "evalByCredential is not supported during registration")
 		}
 
 		if extInputs.PRF.Eval == nil {
-			return nil, newErrorMessage(SyntaxError, "eval is empty")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(SyntaxError, "eval is empty")
 		}
 		var (
 			err          error
@@ -300,7 +300,7 @@ func (d *Device) MakeCredential(
 		)
 		pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		hasher := sha256.New()
@@ -319,18 +319,18 @@ func (d *Device) MakeCredential(
 
 		protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		var platformCoseKey key.Key
 		platformCoseKey, sharedSecret, err = protocol.Encapsulate(keyAgreement)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		saltEnc, err := protocol.Encrypt(sharedSecret, salt)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		saltAuth := crypto.Authenticate(
@@ -356,7 +356,7 @@ func (d *Device) MakeCredential(
 		var err error
 		pinUvAuthProtocol, err = d.requirePinUvAuthProtocol()
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 	}
 
@@ -372,13 +372,13 @@ func (d *Device) MakeCredential(
 		case webauthntypes.CredentialProtectionPolicyUserVerificationRequired:
 			credProtect = 0x03
 		default:
-			return nil, newErrorMessage(ErrNotSupported, "invalid credential protection policy")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "invalid credential protection policy")
 		}
 
 		if extInputs.EnforceCredentialProtectionPolicy &&
 			extInputs.CredentialProtectionPolicy != webauthntypes.CredentialProtectionPolicyUserVerificationOptional &&
 			!slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierCredentialProtection) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support credProtect extension")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support credProtect extension")
 		}
 
 		extensions.CreateCredProtectInput = &ctaptypes.CreateCredProtectInput{
@@ -389,18 +389,18 @@ func (d *Device) MakeCredential(
 	// credBlob
 	if extInputs.CreateCredentialBlobInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierCredentialBlob) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support credBlob extension")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support credBlob extension")
 		}
 
 		maxCredBlobLength, ok := d.info.MaxCredBlobLengthValue()
 		if !ok {
-			return nil, newErrorMessage(
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(
 				ErrNotSupported,
 				"device reports credBlob extension without maxCredBlobLength",
 			)
 		}
 		if uint(len(extInputs.CredBlob)) > maxCredBlobLength {
-			return nil, newErrorMessage(
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(
 				ErrNotSupported,
 				fmt.Sprintf("credBlob length must be less than %d bytes", maxCredBlobLength),
 			)
@@ -414,7 +414,7 @@ func (d *Device) MakeCredential(
 	// minPinLength
 	if extInputs.CreateMinPinLengthInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierMinPinLength) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support minPinLength extension")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support minPinLength extension")
 		}
 
 		extensions.CreateMinPinLengthInput = &ctaptypes.CreateMinPinLengthInput{
@@ -423,7 +423,7 @@ func (d *Device) MakeCredential(
 	}
 	if extInputs.CreatePinComplexityPolicyInputs != nil {
 		if !slices.Contains(d.info.Extensions, webauthntypes.ExtensionIdentifierPinComplexityPolicy) {
-			return nil, newErrorMessage(ErrNotSupported, "device doesn't support pinComplexityPolicy extension")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support pinComplexityPolicy extension")
 		}
 
 		extensions.CreatePinComplexityPolicyInput = &ctaptypes.CreatePinComplexityPolicyInput{
@@ -448,7 +448,7 @@ func (d *Device) MakeCredential(
 		attestationFormatsPreference,
 	)
 	if err != nil {
-		return nil, err
+		return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 	}
 
 	extOutputs := new(webauthntypes.CreateAuthenticationExtensionsClientOutputs)
@@ -484,7 +484,7 @@ func (d *Device) MakeCredential(
 	if resp.AuthData.Extensions.CreateHMACSecretMCOutput != nil {
 		salt, err := protocol.Decrypt(sharedSecret, resp.AuthData.Extensions.CreateHMACSecretMCOutput.HMACSecret)
 		if err != nil {
-			return nil, err
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, err
 		}
 
 		switch len(salt) {
@@ -508,7 +508,7 @@ func (d *Device) MakeCredential(
 				},
 			}
 		default:
-			return nil, newErrorMessage(ErrInvalidSaltSize, "salt must be 32 or 64 bytes")
+			return ctaptypes.AuthenticatorMakeCredentialResponse{}, newErrorMessage(ErrInvalidSaltSize, "salt must be 32 or 64 bytes")
 		}
 	}
 
@@ -525,8 +525,8 @@ func (d *Device) GetAssertion(
 	allowList []webauthntypes.PublicKeyCredentialDescriptor,
 	extInputs *webauthntypes.GetAuthenticationExtensionsClientInputs,
 	options map[ctaptypes.Option]bool,
-) iter.Seq2[*ctaptypes.AuthenticatorGetAssertionResponse, error] {
-	return func(yield func(*ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
+) iter.Seq2[ctaptypes.AuthenticatorGetAssertionResponse, error] {
+	return func(yield func(ctaptypes.AuthenticatorGetAssertionResponse, error) bool) {
 		d.mu.Lock()
 		defer d.mu.Unlock()
 
@@ -542,19 +542,19 @@ func (d *Device) GetAssertion(
 		}
 
 		if extInputs.LargeBlobInputs != nil {
-			yield(nil, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet"))
+			yield(ctaptypes.AuthenticatorGetAssertionResponse{}, newErrorMessage(SyntaxError, "largeBlob extension is not supported yet"))
 			return
 		}
 
 		if extInputs.PRFInputs != nil && extInputs.GetHMACSecretInputs != nil {
-			yield(nil, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time"))
+			yield(ctaptypes.AuthenticatorGetAssertionResponse{}, newErrorMessage(SyntaxError, "you cannot use hmac-secret and prf extensions at the same time"))
 			return
 		}
 
 		// hmac-secret
 		if extInputs.GetHMACSecretInputs != nil {
 			if err := validateHMACGetSecretSalts(extInputs.GetHMACSecretInputs.HMACGetSecret); err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 			var (
@@ -563,7 +563,7 @@ func (d *Device) GetAssertion(
 			)
 			pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 			salt := slices.Concat(
@@ -573,20 +573,20 @@ func (d *Device) GetAssertion(
 
 			protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
 			var platformCoseKey key.Key
 			platformCoseKey, sharedSecret, err = protocol.Encapsulate(keyAgreement)
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
 			saltEnc, err := protocol.Encrypt(sharedSecret, salt)
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
@@ -609,7 +609,7 @@ func (d *Device) GetAssertion(
 		// prf
 		if extInputs.PRFInputs != nil {
 			if extInputs.PRF.EvalByCredential != nil && (allowList == nil || len(allowList) == 0) {
-				yield(nil, newErrorMessage(ErrNotSupported, "evalByCredential works only in conjunction with allowList"))
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, newErrorMessage(ErrNotSupported, "evalByCredential works only in conjunction with allowList"))
 				return
 			}
 
@@ -618,7 +618,7 @@ func (d *Device) GetAssertion(
 			for idStr := range extInputs.PRF.EvalByCredential {
 				id, err := base64.URLEncoding.DecodeString(idStr)
 				if err != nil {
-					yield(nil, newErrorMessage(SyntaxError, "invalid credential id"))
+					yield(ctaptypes.AuthenticatorGetAssertionResponse{}, newErrorMessage(SyntaxError, "invalid credential id"))
 					return
 				}
 
@@ -644,7 +644,7 @@ func (d *Device) GetAssertion(
 				ev = extInputs.PRF.Eval
 			}
 			if ev == nil {
-				yield(nil, newErrorMessage(SyntaxError, "eval is empty"))
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, newErrorMessage(SyntaxError, "eval is empty"))
 				return
 			}
 			var (
@@ -653,7 +653,7 @@ func (d *Device) GetAssertion(
 			)
 			pinUvAuthProtocol, keyAgreement, err = d.pinUvAuthProtocolWithKeyAgreement()
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
@@ -673,20 +673,20 @@ func (d *Device) GetAssertion(
 
 			protocol, err = crypto.NewPinUvAuthProtocol(pinUvAuthProtocol)
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
 			var platformCoseKey key.Key
 			platformCoseKey, sharedSecret, err = protocol.Encapsulate(keyAgreement)
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
 			saltEnc, err := protocol.Encrypt(sharedSecret, salt)
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
@@ -717,7 +717,7 @@ func (d *Device) GetAssertion(
 			var err error
 			pinUvAuthProtocol, err = d.requirePinUvAuthProtocol()
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 		}
@@ -735,7 +735,7 @@ func (d *Device) GetAssertion(
 			options,
 		) {
 			if err != nil {
-				yield(nil, err)
+				yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 				return
 			}
 
@@ -760,7 +760,7 @@ func (d *Device) GetAssertion(
 			if assertion.AuthData.Extensions.GetHMACSecretOutput != nil {
 				salt, err := protocol.Decrypt(sharedSecret, assertion.AuthData.Extensions.HMACSecret)
 				if err != nil {
-					yield(nil, err)
+					yield(ctaptypes.AuthenticatorGetAssertionResponse{}, err)
 					return
 				}
 
@@ -804,7 +804,7 @@ func (d *Device) GetAssertion(
 						}
 					}
 				default:
-					yield(nil, newErrorMessage(ErrInvalidSaltSize, "salt must be 32 or 64 bytes"))
+					yield(ctaptypes.AuthenticatorGetAssertionResponse{}, newErrorMessage(ErrInvalidSaltSize, "salt must be 32 or 64 bytes"))
 					return
 				}
 			}
@@ -817,8 +817,11 @@ func (d *Device) GetAssertion(
 }
 
 // GetInfo returns the struct containing metadata and capabilities of the device.
-func (d *Device) GetInfo() *ctaptypes.AuthenticatorGetInfoResponse {
-	return d.info
+func (d *Device) GetInfo() ctaptypes.AuthenticatorGetInfoResponse {
+	if d.info == nil {
+		return ctaptypes.AuthenticatorGetInfoResponse{}
+	}
+	return *d.info
 }
 
 // GetPINRetries retrieves the number of PIN retries remaining for the device, and if it requires a power cycle
@@ -1050,7 +1053,7 @@ func (d *Device) Reset() error {
 
 // GetBioModality returns bio modality of authenticator.
 // Currently, only fingerprint modality is defined in the FIDO 2.2 specification.
-func (d *Device) GetBioModality() (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+func (d *Device) GetBioModality() (ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1059,7 +1062,7 @@ func (d *Device) GetBioModality() (*ctaptypes.AuthenticatorBioEnrollmentResponse
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
 	}
 	if !ok || !bioEnroll {
-		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
 	return d.ctapClient.GetBioModality(
@@ -1074,7 +1077,7 @@ func (d *Device) GetBioModality() (*ctaptypes.AuthenticatorBioEnrollmentResponse
 //		FingerprintKind: For touch type fingerprints, its value is 1. For swipe type fingerprints, its value is 2.
 //		MaxCaptureSamplesRequiredForEnroll: Indicates the maximum good samples required for enrollment.
 //	 	MaxTemplateFriendlyName: Indicates the maximum number of bytes the authenticator will accept as a templateFriendlyName.
-func (d *Device) GetFingerprintSensorInfo() (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+func (d *Device) GetFingerprintSensorInfo() (ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1083,7 +1086,7 @@ func (d *Device) GetFingerprintSensorInfo() (*ctaptypes.AuthenticatorBioEnrollme
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
 	}
 	if !ok || !bioEnroll {
-		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
 	return d.ctapClient.GetFingerprintSensorInfo(
@@ -1098,7 +1101,7 @@ func (d *Device) GetFingerprintSensorInfo() (*ctaptypes.AuthenticatorBioEnrollme
 func (d *Device) BeginEnroll(
 	pinUvAuthToken []byte,
 	timeoutMilliseconds uint,
-) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+) (ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1107,12 +1110,12 @@ func (d *Device) BeginEnroll(
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
 	}
 	if !ok || !bioEnroll {
-		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
 	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 	if err != nil {
-		return nil, err
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
 	return d.ctapClient.BeginEnroll(
@@ -1130,7 +1133,7 @@ func (d *Device) EnrollCaptureNextSample(
 	pinUvAuthToken []byte,
 	templateID []byte,
 	timeoutMilliseconds uint,
-) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+) (ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1139,12 +1142,12 @@ func (d *Device) EnrollCaptureNextSample(
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
 	}
 	if !ok || !bioEnroll {
-		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
 	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 	if err != nil {
-		return nil, err
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
 	return d.ctapClient.EnrollCaptureNextSample(
@@ -1180,7 +1183,7 @@ func (d *Device) CancelCurrentEnrollment() error {
 
 // EnumerateEnrollments enumerates enrollments by returning TemplateInfos property with an array of TemplateInfo
 // for all the enrollments available on the authenticator.
-func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (*ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
+func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1189,12 +1192,12 @@ func (d *Device) EnumerateEnrollments(pinUvAuthToken []byte) (*ctaptypes.Authent
 		bioEnroll, ok = d.info.Options[ctaptypes.OptionUserVerificationMgmtPreview]
 	}
 	if !ok || !bioEnroll {
-		return nil, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support biometric enrollment")
 	}
 
 	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 	if err != nil {
-		return nil, err
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
 	return d.ctapClient.EnumerateEnrollments(
@@ -1265,7 +1268,7 @@ func (d *Device) RemoveEnrollment(pinUvAuthToken []byte, templateID []byte) erro
 
 // GetCredsMetadata retrieves credential management metadata if the device supports it.
 // Mainly ExistingResidentCredentialsCount and MaxPossibleRemainingResidentCredentialsCount.
-func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.AuthenticatorCredentialManagementResponse, error) {
+func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (ctaptypes.AuthenticatorCredentialManagementResponse, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1274,12 +1277,12 @@ func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.Authenticat
 		credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
 	}
 	if !ok || !credMgmt {
-		return nil, newErrorMessage(ErrNotSupported, "device doesn't support credential management")
+		return ctaptypes.AuthenticatorCredentialManagementResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support credential management")
 	}
 
 	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 	if err != nil {
-		return nil, err
+		return ctaptypes.AuthenticatorCredentialManagementResponse{}, err
 	}
 
 	return d.ctapClient.GetCredsMetadata(
@@ -1294,8 +1297,8 @@ func (d *Device) GetCredsMetadata(pinUvAuthToken []byte) (*ctaptypes.Authenticat
 // EnumerateRPs provides a generator function to iterate over Relying Parties stored on the device.
 // It utilizes the Credential Management extension and yields results via a callback function.
 // If the device does not support credential management, an error is yielded.
-func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.AuthenticatorCredentialManagementResponse, error] {
-	return func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
+func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[ctaptypes.AuthenticatorCredentialManagementResponse, error] {
+	return func(yield func(ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
 		d.mu.Lock()
 		defer d.mu.Unlock()
 
@@ -1304,13 +1307,13 @@ func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.Authen
 			credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
 		}
 		if !ok || !credMgmt {
-			yield(nil, newErrorMessage(ErrNotSupported, "device doesn't support credential management"))
+			yield(ctaptypes.AuthenticatorCredentialManagementResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support credential management"))
 			return
 		}
 
 		pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 		if err != nil {
-			yield(nil, err)
+			yield(ctaptypes.AuthenticatorCredentialManagementResponse{}, err)
 			return
 		}
 
@@ -1331,8 +1334,8 @@ func (d *Device) EnumerateRPs(pinUvAuthToken []byte) iter.Seq2[*ctaptypes.Authen
 // EnumerateCredentials provides a generator function to iterate over Credentials stored on the device
 // for the specified Relying Party. It utilizes the Credential Management extension and yields results
 // via a callback function. If the device does not support credential management, an error is yielded.
-func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) iter.Seq2[*ctaptypes.AuthenticatorCredentialManagementResponse, error] {
-	return func(yield func(*ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
+func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) iter.Seq2[ctaptypes.AuthenticatorCredentialManagementResponse, error] {
+	return func(yield func(ctaptypes.AuthenticatorCredentialManagementResponse, error) bool) {
 		d.mu.Lock()
 		defer d.mu.Unlock()
 
@@ -1341,13 +1344,13 @@ func (d *Device) EnumerateCredentials(pinUvAuthToken []byte, rpIDHash []byte) it
 			credMgmt, ok = d.info.Options[ctaptypes.OptionCredentialManagementPreview]
 		}
 		if !ok || !credMgmt {
-			yield(nil, newErrorMessage(ErrNotSupported, "device doesn't support credential management"))
+			yield(ctaptypes.AuthenticatorCredentialManagementResponse{}, newErrorMessage(ErrNotSupported, "device doesn't support credential management"))
 			return
 		}
 
 		pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 		if err != nil {
-			yield(nil, err)
+			yield(ctaptypes.AuthenticatorCredentialManagementResponse{}, err)
 			return
 		}
 
@@ -1436,7 +1439,7 @@ func (d *Device) UpdateUserInformation(
 // GetLargeBlobs retrieves a list of large blobs from the device that supports the large blobs option.
 // Returns an error if the device does not support large blobs or if there is an issue with the retrieval process.
 // Ensures integrity by validating computed and actual hashes of the retrieved data.
-func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
+func (d *Device) GetLargeBlobs() ([]ctaptypes.LargeBlob, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -1493,10 +1496,10 @@ func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
 	hasher := sha256.New()
 	hasher.Write(bLargeBlobs)
 	if !slices.Equal(hash, hasher.Sum(nil)[:16]) {
-		return []*ctaptypes.LargeBlob{}, nil
+		return []ctaptypes.LargeBlob{}, nil
 	}
 
-	var blobs []*ctaptypes.LargeBlob
+	var blobs []ctaptypes.LargeBlob
 	if err := cbor.Unmarshal(bLargeBlobs, &blobs); err != nil {
 		return nil, err
 	}
@@ -1507,7 +1510,7 @@ func (d *Device) GetLargeBlobs() ([]*ctaptypes.LargeBlob, error) {
 // SetLargeBlobs stores large blobs on the device, ensuring compatibility with its supported capabilities and limits.
 // It validates device support, fragments the blob data if needed, and sends it in chunks to the device.
 // Returns an error if the device does not support large blobs, the data exceeds size limits, or if any other failure occurs.
-func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []*ctaptypes.LargeBlob) error {
+func (d *Device) SetLargeBlobs(pinUvAuthToken []byte, blobs []ctaptypes.LargeBlob) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

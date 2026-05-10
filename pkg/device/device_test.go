@@ -133,7 +133,7 @@ func TestGetAssertionContinuesAfterAssertionWithoutExtensionData(t *testing.T) {
 	fake := newScriptedDevice(t, first, second)
 	d := newTestDevice(fake, &ctaptypes.AuthenticatorGetInfoResponse{})
 
-	var assertions []*ctaptypes.AuthenticatorGetAssertionResponse
+	var assertions []ctaptypes.AuthenticatorGetAssertionResponse
 	for assertion, err := range d.GetAssertion(nil, "example.com", []byte("client-data"), nil, nil, nil) {
 		require.NoError(t, err)
 		assertions = append(assertions, assertion)
@@ -145,7 +145,7 @@ func TestGetAssertionContinuesAfterAssertionWithoutExtensionData(t *testing.T) {
 }
 
 func TestLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
-	encodedBlobs := encodeCBOR(t, []*ctaptypes.LargeBlob{})
+	encodedBlobs := encodeCBOR(t, []ctaptypes.LargeBlob{})
 	sum := sha256.Sum256(encodedBlobs)
 	response := encodeCBOR(t, &ctaptypes.AuthenticatorLargeBlobsResponse{
 		Config: append(encodedBlobs, sum[:16]...),
@@ -169,7 +169,7 @@ func TestLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 }
 
 func TestLargeBlobsTreatsCorruptConfigAsInitialEmptyArray(t *testing.T) {
-	encodedBlobs := encodeCBOR(t, []*ctaptypes.LargeBlob{{Ciphertext: []byte{0xaa}}})
+	encodedBlobs := encodeCBOR(t, []ctaptypes.LargeBlob{{Ciphertext: []byte{0xaa}}})
 	response := encodeCBOR(t, &ctaptypes.AuthenticatorLargeBlobsResponse{
 		Config: append(encodedBlobs, bytes.Repeat([]byte{0x00}, 16)...),
 	})
@@ -194,12 +194,12 @@ func TestSetLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 			ctaptypes.OptionLargeBlobs: true,
 		},
 	})
-	blob := &ctaptypes.LargeBlob{
+	blob := ctaptypes.LargeBlob{
 		Ciphertext: bytes.Repeat([]byte{0xaa}, 1000),
 		Nonce:      []byte("nonce"),
 	}
 
-	err := d.SetLargeBlobs(make([]byte, 32), []*ctaptypes.LargeBlob{blob})
+	err := d.SetLargeBlobs(make([]byte, 32), []ctaptypes.LargeBlob{blob})
 	require.NoError(t, err)
 
 	command, requestCBOR := firstCTAPPayload(t, fake)
@@ -221,7 +221,7 @@ func TestSetLargeBlobsRequiresReportedMaxSerializedLargeBlobArray(t *testing.T) 
 		},
 	})
 
-	err := d.SetLargeBlobs(make([]byte, 32), []*ctaptypes.LargeBlob{})
+	err := d.SetLargeBlobs(make([]byte, 32), []ctaptypes.LargeBlob{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "maxSerializedLargeBlobArray")
 	assert.Empty(t, fake.writes.Bytes())
@@ -235,7 +235,7 @@ func TestCredentialManagementUnsupportedIteratorsReturnBeforeCommand(t *testing.
 		var count int
 		for rp, err := range d.EnumerateRPs(nil) {
 			count++
-			assert.Nil(t, rp)
+			assert.Equal(t, ctaptypes.AuthenticatorCredentialManagementResponse{}, rp)
 			require.Error(t, err)
 			assert.True(t, errors.Is(err, ErrNotSupported))
 		}
@@ -251,7 +251,7 @@ func TestCredentialManagementUnsupportedIteratorsReturnBeforeCommand(t *testing.
 		var count int
 		for cred, err := range d.EnumerateCredentials(nil, make([]byte, 32)) {
 			count++
-			assert.Nil(t, cred)
+			assert.Equal(t, ctaptypes.AuthenticatorCredentialManagementResponse{}, cred)
 			require.Error(t, err)
 			assert.True(t, errors.Is(err, ErrNotSupported))
 		}
@@ -437,7 +437,7 @@ func TestGetAssertionValidatesHMACSecretSalts(t *testing.T) {
 		nil,
 	) {
 		count++
-		assert.Nil(t, assertion)
+		assert.Equal(t, ctaptypes.AuthenticatorGetAssertionResponse{}, assertion)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrInvalidSaltSize))
 	}

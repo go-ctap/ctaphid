@@ -40,13 +40,13 @@ type MakeCredentialAuthData struct {
 	Extensions             *CreateExtensionOutputs
 }
 
-func ParseMakeCredentialAuthData(data []byte) (*MakeCredentialAuthData, error) {
+func ParseMakeCredentialAuthData(data []byte) (MakeCredentialAuthData, error) {
 	d, err := parseAuthData(data)
 	if err != nil {
-		return nil, err
+		return MakeCredentialAuthData{}, err
 	}
 
-	makeCredentialAuthData := &MakeCredentialAuthData{
+	makeCredentialAuthData := MakeCredentialAuthData{
 		RPIDHash:               d.RPIDHash,
 		Flags:                  d.Flags,
 		SignCount:              d.SignCount,
@@ -56,7 +56,7 @@ func ParseMakeCredentialAuthData(data []byte) (*MakeCredentialAuthData, error) {
 	if d.Extensions != nil {
 		if err := cbor.NewDecoder(bytes.NewReader(d.Extensions)).
 			Decode(&makeCredentialAuthData.Extensions); err != nil {
-			return nil, err
+			return MakeCredentialAuthData{}, err
 		}
 	}
 

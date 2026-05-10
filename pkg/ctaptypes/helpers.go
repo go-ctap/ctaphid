@@ -32,12 +32,12 @@ type authData struct {
 	Extensions             []byte
 }
 
-func parseAuthData(data []byte) (*authData, error) {
+func parseAuthData(data []byte) (authData, error) {
 	if len(data) < 37 {
-		return nil, fmt.Errorf("auth data is too short: got %d bytes, want at least 37", len(data))
+		return authData{}, fmt.Errorf("auth data is too short: got %d bytes, want at least 37", len(data))
 	}
 
-	d := &authData{
+	d := authData{
 		RPIDHash:  data[:32],
 		Flags:     AuthDataFlag(data[32]),
 		SignCount: binary.BigEndian.Uint32(data[33:37]),
@@ -45,7 +45,7 @@ func parseAuthData(data []byte) (*authData, error) {
 	offset := 37
 	if d.Flags.AttestedCredentialDataIncluded() {
 		if len(data) < offset+16 {
-			return nil, fmt.Errorf("auth data is missing attested credential AAGUID")
+			return authData{}, fmt.Errorf("auth data is missing attested credential AAGUID")
 		}
 
 		credData := &AttestedCredentialData{
@@ -55,23 +55,23 @@ func parseAuthData(data []byte) (*authData, error) {
 
 		// Credential ID
 		if len(data) < offset+2 {
-			return nil, fmt.Errorf("auth data is missing credential ID length")
+			return authData{}, fmt.Errorf("auth data is missing credential ID length")
 		}
 		length := binary.BigEndian.Uint16(data[offset : offset+2])
 		offset += 2
 		if len(data) < offset+int(length) {
-			return nil, fmt.Errorf("auth data credential ID is truncated")
+			return authData{}, fmt.Errorf("auth data credential ID is truncated")
 		}
 		credData.CredentialID = data[offset : offset+int(length)]
 		offset += int(length)
 
 		// Credential Public Key
 		if len(data) == offset {
-			return nil, fmt.Errorf("auth data is missing credential public key")
+			return authData{}, fmt.Errorf("auth data is missing credential public key")
 		}
 		dec := cbor.NewDecoder(bytes.NewReader(data[offset:]))
 		if err := dec.Decode(&credData.CredentialPublicKey); err != nil {
-			return nil, err
+			return authData{}, err
 		}
 		offset += dec.NumBytesRead()
 
@@ -117,147 +117,147 @@ func (vv Versions) IsPreviewOnly() bool {
 	return fidoTwo && (!fidoTwoOne && !fidoTwoThree && fidoTwoOnePre)
 }
 
-func (r *AuthenticatorMakeCredentialResponse) PackedAttestationStatementFormat() (*webauthntypes.PackedAttestationStatementFormat, bool) {
+func (r *AuthenticatorMakeCredentialResponse) PackedAttestationStatementFormat() (webauthntypes.PackedAttestationStatementFormat, bool) {
 	algRaw, ok := r.AttestationStatement["alg"]
 	if !ok {
-		return nil, false
+		return webauthntypes.PackedAttestationStatementFormat{}, false
 	}
 	alg, ok := algRaw.(int64)
 	if !ok {
-		return nil, false
+		return webauthntypes.PackedAttestationStatementFormat{}, false
 	}
 
 	sigRaw, ok := r.AttestationStatement["sig"]
 	if !ok {
-		return nil, false
+		return webauthntypes.PackedAttestationStatementFormat{}, false
 	}
 	sig, ok := sigRaw.([]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.PackedAttestationStatementFormat{}, false
 	}
 
 	x5cRaw, ok := r.AttestationStatement["x5c"]
 	if !ok {
-		return nil, false
+		return webauthntypes.PackedAttestationStatementFormat{}, false
 	}
 	x5cSlice, ok := x5cRaw.([]any)
 	if !ok {
-		return nil, false
+		return webauthntypes.PackedAttestationStatementFormat{}, false
 	}
 	var x5c [][]byte
 	for _, certRaw := range x5cSlice {
 		cert, ok := certRaw.([]byte)
 		if !ok {
-			return nil, false
+			return webauthntypes.PackedAttestationStatementFormat{}, false
 		}
 		x5c = append(x5c, cert)
 	}
 
-	return &webauthntypes.PackedAttestationStatementFormat{
+	return webauthntypes.PackedAttestationStatementFormat{
 		Algorithm: key.Alg(alg),
 		Signature: sig,
 		X509Chain: x5c,
 	}, true
 }
 
-func (r *AuthenticatorMakeCredentialResponse) FIDOU2FAttestationStatementFormat() (*webauthntypes.FIDOU2FAttestationStatementFormat, bool) {
+func (r *AuthenticatorMakeCredentialResponse) FIDOU2FAttestationStatementFormat() (webauthntypes.FIDOU2FAttestationStatementFormat, bool) {
 	x5cRaw, ok := r.AttestationStatement["x5c"]
 	if !ok {
-		return nil, false
+		return webauthntypes.FIDOU2FAttestationStatementFormat{}, false
 	}
 	x5c, ok := x5cRaw.([][]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.FIDOU2FAttestationStatementFormat{}, false
 	}
 
 	sigRaw, ok := r.AttestationStatement["sig"]
 	if !ok {
-		return nil, false
+		return webauthntypes.FIDOU2FAttestationStatementFormat{}, false
 	}
 	sig, ok := sigRaw.([]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.FIDOU2FAttestationStatementFormat{}, false
 	}
 
-	return &webauthntypes.FIDOU2FAttestationStatementFormat{
+	return webauthntypes.FIDOU2FAttestationStatementFormat{
 		Signature: sig,
 		X509Chain: x5c,
 	}, true
 }
 
-func (r *AuthenticatorMakeCredentialResponse) TPMAttestationStatementFormat() (*webauthntypes.TPMAttestationStatementFormat, bool) {
+func (r *AuthenticatorMakeCredentialResponse) TPMAttestationStatementFormat() (webauthntypes.TPMAttestationStatementFormat, bool) {
 	verRaw, ok := r.AttestationStatement["ver"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	ver, ok := verRaw.(string)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 
 	algRaw, ok := r.AttestationStatement["alg"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	alg, ok := algRaw.(int64)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 
 	x5cRaw, ok := r.AttestationStatement["x5c"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	x5cSlice, ok := x5cRaw.([]any)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	var x5c [][]byte
 	for _, certRaw := range x5cSlice {
 		cert, ok := certRaw.([]byte)
 		if !ok {
-			return nil, false
+			return webauthntypes.TPMAttestationStatementFormat{}, false
 		}
 		x5c = append(x5c, cert)
 	}
 
 	aikCertRaw, ok := r.AttestationStatement["aikCert"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	aikCert, ok := aikCertRaw.([]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 
 	sigRaw, ok := r.AttestationStatement["sig"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	sig, ok := sigRaw.([]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 
 	certInfoRaw, ok := r.AttestationStatement["certInfo"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	certInfo, ok := certInfoRaw.([]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 
 	pubAreaRaw, ok := r.AttestationStatement["pubArea"]
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 	pubArea, ok := pubAreaRaw.([]byte)
 	if !ok {
-		return nil, false
+		return webauthntypes.TPMAttestationStatementFormat{}, false
 	}
 
-	return &webauthntypes.TPMAttestationStatementFormat{
+	return webauthntypes.TPMAttestationStatementFormat{
 		Version:   ver,
 		Algorithm: key.Alg(alg),
 		X509Chain: x5c,

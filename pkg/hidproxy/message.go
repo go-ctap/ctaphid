@@ -24,34 +24,34 @@ type Message struct {
 	Data    []byte
 }
 
-func ParseMessage(pipe io.ReadWriteCloser) (*Message, error) {
+func ParseMessage(pipe io.ReadWriteCloser) (Message, error) {
 	cmd := make([]byte, 1)
 	if _, err := io.ReadFull(pipe, cmd); err != nil {
-		return nil, err
+		return Message{}, err
 	}
 
 	bLen := make([]byte, 2)
 	if _, err := io.ReadFull(pipe, bLen); err != nil {
-		return nil, err
+		return Message{}, err
 	}
 	length := binary.BigEndian.Uint16(bLen)
 
 	bData := make([]byte, length)
 	if length > 0 {
 		if _, err := io.ReadFull(pipe, bData); err != nil {
-			return nil, err
+			return Message{}, err
 		}
 	}
 
-	return &Message{
+	return Message{
 		Command: Command(cmd[0]),
 		length:  length,
 		Data:    bData,
 	}, nil
 }
 
-func NewMessage(cmd Command, data any) (*Message, error) {
-	msg := &Message{
+func NewMessage(cmd Command, data any) (Message, error) {
+	msg := Message{
 		Command: cmd,
 	}
 
@@ -60,7 +60,7 @@ func NewMessage(cmd Command, data any) (*Message, error) {
 	if data != nil {
 		b, err = encMode.Marshal(data)
 		if err != nil {
-			return nil, err
+			return Message{}, err
 		}
 	}
 
