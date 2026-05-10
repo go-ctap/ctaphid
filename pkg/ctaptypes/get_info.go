@@ -9,6 +9,7 @@ type (
 	Version           string
 	Versions          []Version
 	PinUvAuthProtocol uint
+	UserVerify        uint
 )
 
 const (
@@ -23,6 +24,55 @@ const (
 	PinUvAuthProtocolOne PinUvAuthProtocol = iota + 1
 	PinUvAuthProtocolTwo
 )
+
+const (
+	UserVerifyPresenceInternal UserVerify = 1 << iota
+	UserVerifyFingerprintInternal
+	UserVerifyPasscodeInternal
+	UserVerifyVoiceprintInternal
+	UserVerifyFaceprintInternal
+	UserVerifyLocationInternal
+	UserVerifyEyeprintInternal
+	UserVerifyPatternInternal
+	UserVerifyHandprintInternal
+	UserVerifyPasscodeExternal
+	UserVerifyPatternExternal
+	UserVerifyNone
+	UserVerifyAll
+)
+
+func (uv UserVerify) String() string {
+	switch uv {
+	case UserVerifyPresenceInternal:
+		return "presence_internal"
+	case UserVerifyFingerprintInternal:
+		return "fingerprint_internal"
+	case UserVerifyPasscodeInternal:
+		return "passcode_internal"
+	case UserVerifyVoiceprintInternal:
+		return "voiceprint_internal"
+	case UserVerifyFaceprintInternal:
+		return "faceprint_internal"
+	case UserVerifyLocationInternal:
+		return "location_internal"
+	case UserVerifyEyeprintInternal:
+		return "eyeprint_internal"
+	case UserVerifyPatternInternal:
+		return "pattern_internal"
+	case UserVerifyHandprintInternal:
+		return "handprint_internal"
+	case UserVerifyPasscodeExternal:
+		return "passcode_external"
+	case UserVerifyPatternExternal:
+		return "pattern_external"
+	case UserVerifyNone:
+		return "none"
+	case UserVerifyAll:
+		return "all"
+	default:
+		return ""
+	}
+}
 
 const (
 	DefaultMaxMsgSize       uint = 1024
@@ -48,7 +98,7 @@ type AuthenticatorGetInfoResponse struct {
 	MaxCredBlobLength                *uint                                         `cbor:"15,keyasint" json:"maxCredBlobLength,omitempty"`
 	MaxRPIDsForSetMinPINLength       *uint                                         `cbor:"16,keyasint" json:"maxRPIDsForSetMinPINLength,omitempty"`
 	PreferredPlatformUvAttempts      *uint                                         `cbor:"17,keyasint" json:"preferredPlatformUvAttempts,omitempty"`
-	UvModality                       *uint                                         `cbor:"18,keyasint" json:"uvModality,omitempty"`
+	UvModality                       *UserVerify                                   `cbor:"18,keyasint" json:"uvModality,omitempty"`
 	Certifications                   map[string]uint64                             `cbor:"19,keyasint" json:"certifications,omitempty"`
 	RemainingDiscoverableCredentials *uint                                         `cbor:"20,keyasint" json:"remainingDiscoverableCredentials,omitempty"`
 	VendorPrototypeConfigCommands    []uint                                        `cbor:"21,keyasint" json:"vendorPrototypeConfigCommands,omitempty"`

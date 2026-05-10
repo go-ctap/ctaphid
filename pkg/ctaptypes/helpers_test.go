@@ -1,6 +1,7 @@
 package ctaptypes
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -32,6 +33,51 @@ func TestAuthenticatorGetInfoResponsePreservesOptionalScalarPresence(t *testing.
 	require.False(t, ok)
 	require.Nil(t, resp.MinPINLength)
 	require.Nil(t, resp.LongTouchForReset)
+}
+
+func TestAuthenticatorGetInfoResponseOmitsAbsentOptionalScalarsJSON(t *testing.T) {
+	raw, err := json.Marshal(AuthenticatorGetInfoResponse{})
+	require.NoError(t, err)
+
+	text := string(raw)
+	for _, absentField := range []string{
+		"maxMsgSize",
+		"forcePINChange",
+		"preferredPlatformUvAttempts",
+		"uvModality",
+		"uvCountSinceLastPinEntry",
+		"longTouchForReset",
+		"pinComplexityPolicy",
+		"pinComplexityPolicyURL",
+		"maxPINLength",
+		"encCredStoreState",
+	} {
+		require.NotContains(t, text, absentField)
+	}
+
+	zero := uint(0)
+	disabled := false
+	raw, err = json.Marshal(AuthenticatorGetInfoResponse{
+		MaxMsgSize:                  &zero,
+		PreferredPlatformUvAttempts: &zero,
+		UvModality:                  (*UserVerify)(&zero),
+		UvCountSinceLastPinEntry:    &zero,
+		LongTouchForReset:           &disabled,
+		PinComplexityPolicy:         &disabled,
+	})
+	require.NoError(t, err)
+
+	text = string(raw)
+	for _, presentValue := range []string{
+		`"maxMsgSize":0`,
+		`"preferredPlatformUvAttempts":0`,
+		`"uvModality":0`,
+		`"uvCountSinceLastPinEntry":0`,
+		`"longTouchForReset":false`,
+		`"pinComplexityPolicy":false`,
+	} {
+		require.Contains(t, text, presentValue)
+	}
 }
 
 func TestAuthenticatorGetInfoResponseEffectiveDefaults(t *testing.T) {
