@@ -13,7 +13,7 @@ require (
 	github.com/sstallion/go-hid v0.15.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.50.0
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.37.0
 )
 
 require (
