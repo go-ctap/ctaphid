@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-	"github.com/go-ctap/ctaphid/pkg/options"
-	"github.com/go-ctap/ctaphid/pkg/sugar"
+	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctaphid/options"
+	"github.com/go-ctap/ctaphid/sugar"
 )
 
 func main() {

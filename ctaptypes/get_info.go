@@ -1,7 +1,7 @@
 package ctaptypes
 
 import (
-	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/webauthntypes"
 	"github.com/google/uuid"
 )
 

@@ -11,11 +11,11 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/go-ctap/ctaphid/pkg/crypto"
-	"github.com/go-ctap/ctaphid/pkg/ctaphid"
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-	"github.com/go-ctap/ctaphid/pkg/options"
-	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/crypto"
+	"github.com/go-ctap/ctaphid/ctaphid"
+	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctaphid/options"
+	"github.com/go-ctap/ctaphid/webauthntypes"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/cose/key"

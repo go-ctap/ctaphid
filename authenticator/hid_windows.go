@@ -1,6 +1,6 @@
 //go:build !hid_cgo
 
-package device
+package authenticator
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/Microsoft/go-winio"
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/pkg/hidproxy"
+	"github.com/go-ctap/ctaphid/hidproxy"
 	ghid "github.com/go-ctap/hid"
 )
 

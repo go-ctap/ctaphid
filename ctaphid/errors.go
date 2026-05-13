@@ -3,7 +3,7 @@ package ctaphid
 import (
 	"errors"
 
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
+	"github.com/go-ctap/ctaphid/ctaptypes"
 )
 
 var (

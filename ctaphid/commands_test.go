@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
+	"github.com/go-ctap/ctaphid/ctaptypes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

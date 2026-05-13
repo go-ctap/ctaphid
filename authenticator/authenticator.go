@@ -1,4 +1,4 @@
-package device
+package authenticator
 
 import (
 	"bytes"
@@ -14,15 +14,14 @@ import (
 	"sync"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/crypto"
+	"github.com/go-ctap/ctaphid/ctap"
+	"github.com/go-ctap/ctaphid/ctaphid"
+	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctaphid/options"
+	"github.com/go-ctap/ctaphid/webauthntypes"
 	"github.com/ldclabs/cose/key"
 	"github.com/samber/lo"
-
-	"github.com/go-ctap/ctaphid/pkg/crypto"
-	"github.com/go-ctap/ctaphid/pkg/ctap"
-	"github.com/go-ctap/ctaphid/pkg/ctaphid"
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-	"github.com/go-ctap/ctaphid/pkg/options"
 )
 
 // Device represents a physical or virtual hardware device supporting CTAP communication protocols.

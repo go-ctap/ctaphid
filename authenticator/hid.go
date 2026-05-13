@@ -1,6 +1,6 @@
 //go:build linux && (!hid_cgo || !darwin)
 
-package device
+package authenticator
 
 import (
 	"context"

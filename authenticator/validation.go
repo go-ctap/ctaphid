@@ -1,9 +1,9 @@
-package device
+package authenticator
 
 import (
-	"github.com/go-ctap/ctaphid/pkg/ctap"
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/ctap"
+	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctaphid/webauthntypes"
 )
 
 func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {

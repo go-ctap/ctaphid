@@ -1,6 +1,6 @@
 //go:build hid_cgo || darwin
 
-package device
+package authenticator
 
 import (
 	"context"

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/webauthntypes"
 	"github.com/google/uuid"
 	"github.com/ldclabs/cose/key"
 )

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-	"github.com/go-ctap/ctaphid/pkg/device"
-	"github.com/go-ctap/ctaphid/pkg/options"
+	"github.com/go-ctap/ctaphid/authenticator"
+	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctaphid/options"
 	ghid "github.com/go-ctap/hid"
 	"github.com/samber/lo"
 
@@ -18,8 +18,8 @@ func EnumerateFIDODevices(opts ...options.Option) ([]*ghid.DeviceInfo, error) {
 	oo := options.NewOptions(opts...)
 
 	devInfos := make([]*ghid.DeviceInfo, 0)
-	ctx := context.WithValue(oo.Context, device.CtxKeyUseNamedPipe, oo.UseNamedPipe)
-	for devInfo, err := range device.Enumerate(ctx) {
+	ctx := context.WithValue(oo.Context, authenticator.CtxKeyUseNamedPipe, oo.UseNamedPipe)
+	for devInfo, err := range authenticator.Enumerate(ctx) {
 		if err != nil {
 			return nil, err
 		}
@@ -32,7 +32,7 @@ func EnumerateFIDODevices(opts ...options.Option) ([]*ghid.DeviceInfo, error) {
 
 // SelectDevice allows selecting a device by confirming presence;
 // useful while a user has many tokens connected. Works only with FIDO 2.1 tokens (including PRE).
-func SelectDevice(opts ...options.Option) (*device.Device, error) {
+func SelectDevice(opts ...options.Option) (*authenticator.Device, error) {
 	oo := options.NewOptions(opts...)
 
 	if oo.Paths == nil {
@@ -46,13 +46,13 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 	}
 
 	if len(oo.Paths) == 1 {
-		return device.New(oo.Paths[0], opts...)
+		return authenticator.New(oo.Paths[0], opts...)
 	}
 
-	devices := make([]*device.Device, 0)
+	devices := make([]*authenticator.Device, 0)
 
 	// Here we will receive either a device or an error from first success Selection() call.
-	selection := make(chan mo.Either[*device.Device, error], len(oo.Paths))
+	selection := make(chan mo.Either[*authenticator.Device, error], len(oo.Paths))
 
 	// WaitGroup allows us to wait for all Selection() calls to finish.
 	var wg sync.WaitGroup
@@ -64,7 +64,7 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 	defer cancel()
 
 	for _, p := range oo.Paths {
-		dev, err := device.New(p, opts...)
+		dev, err := authenticator.New(p, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,7 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 		}
 
 		wg.Add(1)
-		go func(dev *device.Device) {
+		go func(dev *authenticator.Device) {
 			defer wg.Done()
 
 			// Selection() will block until ctx is canceled or a device is selected.
@@ -89,10 +89,10 @@ func SelectDevice(opts ...options.Option) (*device.Device, error) {
 				once.Do(func() {
 					cancel()
 					if err != nil {
-						selection <- mo.Right[*device.Device, error](err)
+						selection <- mo.Right[*authenticator.Device, error](err)
 						return
 					}
-					selection <- mo.Left[*device.Device, error](dev)
+					selection <- mo.Left[*authenticator.Device, error](dev)
 				})
 			}
 		}(dev)

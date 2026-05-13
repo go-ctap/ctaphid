@@ -9,13 +9,12 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/go-ctap/ctaphid/pkg/crypto/protocolone"
-	"github.com/go-ctap/ctaphid/pkg/crypto/protocoltwo"
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-
+	"github.com/go-ctap/ctaphid/crypto/protocolone"
+	"github.com/go-ctap/ctaphid/crypto/protocoltwo"
+	"github.com/go-ctap/ctaphid/ctaptypes"
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
-	ecdh2 "github.com/ldclabs/cose/key/ecdh"
+	ecdhkey "github.com/ldclabs/cose/key/ecdh"
 )
 
 type PinUvAuthProtocol struct {
@@ -30,7 +29,7 @@ func NewPinUvAuthProtocol(number ctaptypes.PinUvAuthProtocol) (*PinUvAuthProtoco
 		return nil, fmt.Errorf("cannot generate platform P-256 keypair: %w", err)
 	}
 
-	platformPubkey, err := ecdh2.KeyFromPublic(platformPrivkey.Public().(*ecdh.PublicKey))
+	platformPubkey, err := ecdhkey.KeyFromPublic(platformPrivkey.Public().(*ecdh.PublicKey))
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert platform public key to COSE_Key: %w", err)
 	}
@@ -50,7 +49,7 @@ func NewPinUvAuthProtocol(number ctaptypes.PinUvAuthProtocol) (*PinUvAuthProtoco
 }
 
 func (p *PinUvAuthProtocol) ECDH(peerCoseKey key.Key) ([]byte, error) {
-	peerPubkey, err := ecdh2.KeyToPublic(peerCoseKey)
+	peerPubkey, err := ecdhkey.KeyToPublic(peerCoseKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert peer public key to Go *ecdh.PublicKey: %w", err)
 	}

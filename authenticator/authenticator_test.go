@@ -1,4 +1,4 @@
-package device
+package authenticator
 
 import (
 	"bytes"
@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/go-ctap/ctaphid/ctap"
+	"github.com/go-ctap/ctaphid/ctaphid"
+	"github.com/go-ctap/ctaphid/ctaptypes"
 	"github.com/go-ctap/ctaphid/internal/testhid"
-	"github.com/go-ctap/ctaphid/pkg/ctap"
-	"github.com/go-ctap/ctaphid/pkg/ctaphid"
-	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
-	"github.com/go-ctap/ctaphid/pkg/webauthntypes"
+	"github.com/go-ctap/ctaphid/webauthntypes"
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
 	ecdhkey "github.com/ldclabs/cose/key/ecdh"
