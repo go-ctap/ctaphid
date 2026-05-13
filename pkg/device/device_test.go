@@ -5,12 +5,11 @@ import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/go-ctap/ctaphid/internal/testhid"
 	"github.com/go-ctap/ctaphid/pkg/ctap"
 	"github.com/go-ctap/ctaphid/pkg/ctaphid"
 	"github.com/go-ctap/ctaphid/pkg/ctaptypes"
@@ -25,54 +24,7 @@ import (
 
 var testCID = ctaphid.ChannelID{1, 2, 3, 4}
 
-type scriptedDevice struct {
-	reads  *bytes.Reader
-	writes bytes.Buffer
-}
-
-func newScriptedDevice(t *testing.T, responses ...[]byte) *scriptedDevice {
-	t.Helper()
-
-	var reads bytes.Buffer
-	for _, response := range responses {
-		msg, err := ctaphid.NewMessage(testCID, ctaphid.CTAPHID_CBOR, append([]byte{byte(ctaphid.CTAP2_OK)}, response...))
-		require.NoError(t, err)
-
-		var withReportIDs bytes.Buffer
-		_, err = msg.WriteTo(&withReportIDs)
-		require.NoError(t, err)
-		reads.Write(stripReportIDs(withReportIDs.Bytes()))
-	}
-
-	return &scriptedDevice{reads: bytes.NewReader(reads.Bytes())}
-}
-
-func (d *scriptedDevice) Read(p []byte) (int, error) {
-	return d.reads.Read(p)
-}
-
-func (d *scriptedDevice) Write(p []byte) (int, error) {
-	return d.writes.Write(p)
-}
-
-func (d *scriptedDevice) Close() error {
-	return nil
-}
-
-func stripReportIDs(packets []byte) []byte {
-	const reportPacketSize = 65
-	const packetSize = 64
-
-	stripped := make([]byte, 0, len(packets)/reportPacketSize*packetSize)
-	for len(packets) >= reportPacketSize {
-		stripped = append(stripped, packets[1:reportPacketSize]...)
-		packets = packets[reportPacketSize:]
-	}
-
-	return stripped
-}
-
-func newTestDevice(fake *scriptedDevice, info ctaptypes.AuthenticatorGetInfoResponse) *Device {
+func newTestDevice(fake *testhid.Device, info ctaptypes.AuthenticatorGetInfoResponse) *Device {
 	encMode, _ := cbor.CTAP2EncOptions().EncMode()
 	d := &Device{
 		device:     fake,
@@ -114,31 +66,6 @@ func minimalAuthData() []byte {
 	return make([]byte, 37)
 }
 
-func firstCTAPPayload(t *testing.T, fake *scriptedDevice) (ctaptypes.Command, []byte) {
-	t.Helper()
-
-	written := fake.writes.Bytes()
-	require.GreaterOrEqual(t, len(written), 8)
-	require.Equal(t, byte(0), written[0])
-	require.Equal(t, testCID[:], written[1:5])
-	length := int(binary.BigEndian.Uint16(written[6:8]))
-	payload := make([]byte, 0, length)
-	firstPacketDataLen := min(length, 57)
-	payload = append(payload, written[8:8+firstPacketDataLen]...)
-	remaining := length - firstPacketDataLen
-	offset := 65
-	for remaining > 0 {
-		require.GreaterOrEqual(t, len(written), offset+65)
-		dataLen := min(remaining, 59)
-		payload = append(payload, written[offset+6:offset+6+dataLen]...)
-		remaining -= dataLen
-		offset += 65
-	}
-	require.NotEmpty(t, payload)
-
-	return ctaptypes.Command(payload[0]), payload[1:]
-}
-
 func TestGetAssertionContinuesAfterAssertionWithoutExtensionData(t *testing.T) {
 	first := encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
 		AuthDataRaw:         minimalAuthData(),
@@ -149,7 +76,7 @@ func TestGetAssertionContinuesAfterAssertionWithoutExtensionData(t *testing.T) {
 		AuthDataRaw: minimalAuthData(),
 		Signature:   []byte{2},
 	})
-	fake := newScriptedDevice(t, first, second)
+	fake := testhid.NewCBORDevice(t, testCID, first, second)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{})
 
 	var assertions []ctaptypes.AuthenticatorGetAssertionResponse
@@ -169,7 +96,7 @@ func TestLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 	response := encodeCBOR(t, &ctaptypes.AuthenticatorLargeBlobsResponse{
 		Config: append(encodedBlobs, sum[:16]...),
 	})
-	fake := newScriptedDevice(t, response)
+	fake := testhid.NewCBORDevice(t, testCID, response)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Options: map[ctaptypes.Option]bool{
 			ctaptypes.OptionLargeBlobs: true,
@@ -180,7 +107,7 @@ func TestLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, blobs)
 
-	command, requestCBOR := firstCTAPPayload(t, fake)
+	command, requestCBOR := fake.FirstCTAPPayload(t)
 	require.Equal(t, ctaptypes.AuthenticatorLargeBlobs, command)
 	var request map[uint64]any
 	require.NoError(t, cbor.Unmarshal(requestCBOR, &request))
@@ -192,7 +119,7 @@ func TestLargeBlobsTreatsCorruptConfigAsInitialEmptyArray(t *testing.T) {
 	response := encodeCBOR(t, &ctaptypes.AuthenticatorLargeBlobsResponse{
 		Config: append(encodedBlobs, bytes.Repeat([]byte{0x00}, 16)...),
 	})
-	fake := newScriptedDevice(t, response)
+	fake := testhid.NewCBORDevice(t, testCID, response)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Options: map[ctaptypes.Option]bool{
 			ctaptypes.OptionLargeBlobs: true,
@@ -205,7 +132,7 @@ func TestLargeBlobsTreatsCorruptConfigAsInitialEmptyArray(t *testing.T) {
 }
 
 func TestSetLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
-	fake := newScriptedDevice(t, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	fake := testhid.NewCBORDevice(t, testCID, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols:          []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 		MaxSerializedLargeBlobArray: lo.ToPtr(uint(2048)),
@@ -221,7 +148,7 @@ func TestSetLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 	err := d.SetLargeBlobs(make([]byte, 32), []ctaptypes.LargeBlob{blob})
 	require.NoError(t, err)
 
-	command, requestCBOR := firstCTAPPayload(t, fake)
+	command, requestCBOR := fake.FirstCTAPPayload(t)
 	require.Equal(t, ctaptypes.AuthenticatorLargeBlobs, command)
 	var request map[uint64]any
 	require.NoError(t, cbor.Unmarshal(requestCBOR, &request))
@@ -232,7 +159,7 @@ func TestSetLargeBlobsUsesDefaultMaxMsgSizeWhenMissing(t *testing.T) {
 }
 
 func TestSetLargeBlobsRequiresReportedMaxSerializedLargeBlobArray(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 		Options: map[ctaptypes.Option]bool{
@@ -243,12 +170,12 @@ func TestSetLargeBlobsRequiresReportedMaxSerializedLargeBlobArray(t *testing.T) 
 	err := d.SetLargeBlobs(make([]byte, 32), []ctaptypes.LargeBlob{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "maxSerializedLargeBlobArray")
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestCredentialManagementUnsupportedIteratorsReturnBeforeCommand(t *testing.T) {
 	t.Run("enumerate RPs", func(t *testing.T) {
-		fake := newScriptedDevice(t)
+		fake := testhid.NewCBORDevice(t, testCID)
 		d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{Options: map[ctaptypes.Option]bool{}})
 
 		var count int
@@ -260,11 +187,11 @@ func TestCredentialManagementUnsupportedIteratorsReturnBeforeCommand(t *testing.
 		}
 
 		assert.Equal(t, 1, count)
-		assert.Empty(t, fake.writes.Bytes())
+		assert.Empty(t, fake.Writes())
 	})
 
 	t.Run("enumerate credentials", func(t *testing.T) {
-		fake := newScriptedDevice(t)
+		fake := testhid.NewCBORDevice(t, testCID)
 		d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{Options: map[ctaptypes.Option]bool{}})
 
 		var count int
@@ -276,12 +203,12 @@ func TestCredentialManagementUnsupportedIteratorsReturnBeforeCommand(t *testing.
 		}
 
 		assert.Equal(t, 1, count)
-		assert.Empty(t, fake.writes.Bytes())
+		assert.Empty(t, fake.Writes())
 	})
 }
 
 func TestUpdateUserInformationUsesPreviewCommandForPreviewOnlyDevice(t *testing.T) {
-	fake := newScriptedDevice(t, nil)
+	fake := testhid.NewCBORDevice(t, testCID, nil)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Versions:           ctaptypes.Versions{ctaptypes.FIDO_2_0, ctaptypes.FIDO_2_1_PRE},
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
@@ -297,7 +224,7 @@ func TestUpdateUserInformationUsesPreviewCommandForPreviewOnlyDevice(t *testing.
 	)
 	require.NoError(t, err)
 
-	command, _ := firstCTAPPayload(t, fake)
+	command, _ := fake.FirstCTAPPayload(t)
 	assert.Equal(t, ctaptypes.PrototypeAuthenticatorCredentialManagement, command)
 }
 
@@ -306,7 +233,7 @@ func TestMakeCredentialCredPropsOutputDependsOnCredPropsInput(t *testing.T) {
 		Format:      webauthntypes.AttestationStatementFormatIdentifierPacked,
 		AuthDataRaw: minimalAuthData(),
 	})
-	fake := newScriptedDevice(t, response)
+	fake := testhid.NewCBORDevice(t, testCID, response)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Options: map[ctaptypes.Option]bool{
 			ctaptypes.OptionMakeCredentialUvNotRequired: true,
@@ -336,7 +263,7 @@ func TestMakeCredentialCredPropsOutputDependsOnCredPropsInput(t *testing.T) {
 }
 
 func TestMakeCredentialRequiresMaxCredBlobLengthWhenCredBlobExtensionReported(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Extensions: []webauthntypes.ExtensionIdentifier{
 			webauthntypes.ExtensionIdentifierCredentialBlob,
@@ -365,11 +292,11 @@ func TestMakeCredentialRequiresMaxCredBlobLengthWhenCredBlobExtensionReported(t 
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "maxCredBlobLength")
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestMissingPinUvAuthProtocolsReturnsError(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Options: map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: false},
 	})
@@ -377,11 +304,11 @@ func TestMissingPinUvAuthProtocolsReturnsError(t *testing.T) {
 	err := d.SetPIN("1234")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrNotSupported))
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestGetPinUvAuthTokenUsingPINValidatesPINBeforeCommand(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 		Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: true},
@@ -390,12 +317,12 @@ func TestGetPinUvAuthTokenUsingPINValidatesPINBeforeCommand(t *testing.T) {
 	_, err := d.GetPinUvAuthTokenUsingPIN("123\x00", ctaptypes.PermissionCredentialManagement, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "0x00")
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestSetPINValidatesPINBeforeCommand(t *testing.T) {
 	t.Run("rejects too short PIN", func(t *testing.T) {
-		fake := newScriptedDevice(t)
+		fake := testhid.NewCBORDevice(t, testCID)
 		d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 			PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 			Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: false},
@@ -404,11 +331,11 @@ func TestSetPINValidatesPINBeforeCommand(t *testing.T) {
 		err := d.SetPIN("123")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 4")
-		assert.Empty(t, fake.writes.Bytes())
+		assert.Empty(t, fake.Writes())
 	})
 
 	t.Run("honors minPinLength", func(t *testing.T) {
-		fake := newScriptedDevice(t)
+		fake := testhid.NewCBORDevice(t, testCID)
 		d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 			PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 			MinPINLength:       lo.ToPtr(uint(8)),
@@ -418,7 +345,7 @@ func TestSetPINValidatesPINBeforeCommand(t *testing.T) {
 		err := d.SetPIN("1234567")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 8")
-		assert.Empty(t, fake.writes.Bytes())
+		assert.Empty(t, fake.Writes())
 	})
 }
 
@@ -430,7 +357,7 @@ func TestSetPINRefreshesCachedGetInfo(t *testing.T) {
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 		Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: true},
 	})
-	fake := newScriptedDevice(t, keyAgreement, nil, updatedInfo)
+	fake := testhid.NewCBORDevice(t, testCID, keyAgreement, nil, updatedInfo)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 		Options:            map[ctaptypes.Option]bool{ctaptypes.OptionClientPIN: false},
@@ -443,7 +370,7 @@ func TestSetPINRefreshesCachedGetInfo(t *testing.T) {
 }
 
 func TestChangePINValidatesNewPINBeforeCommand(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		PinUvAuthProtocols: []ctaptypes.PinUvAuthProtocol{ctaptypes.PinUvAuthProtocolOne},
 		MinPINLength:       lo.ToPtr(uint(8)),
@@ -453,11 +380,11 @@ func TestChangePINValidatesNewPINBeforeCommand(t *testing.T) {
 	err := d.ChangePIN("1234", "1234567")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least 8")
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestGetAssertionValidatesHMACSecretSalts(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Extensions: []webauthntypes.ExtensionIdentifier{webauthntypes.ExtensionIdentifierHMACSecret},
 	})
@@ -482,11 +409,11 @@ func TestGetAssertionValidatesHMACSecretSalts(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, count)
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestMakeCredentialValidatesHMACSecretMCSalts(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{
 		Extensions: []webauthntypes.ExtensionIdentifier{webauthntypes.ExtensionIdentifierHMACSecretMC},
 		Options: map[ctaptypes.Option]bool{
@@ -515,17 +442,15 @@ func TestMakeCredentialValidatesHMACSecretMCSalts(t *testing.T) {
 	)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrInvalidSaltSize))
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
 
 func TestLockRejectsOutOfRangeSeconds(t *testing.T) {
-	fake := newScriptedDevice(t)
+	fake := testhid.NewCBORDevice(t, testCID)
 	d := newTestDevice(fake, ctaptypes.AuthenticatorGetInfoResponse{})
 
 	err := d.Lock(11)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, SyntaxError))
-	assert.Empty(t, fake.writes.Bytes())
+	assert.Empty(t, fake.Writes())
 }
-
-var _ io.ReadWriteCloser = (*scriptedDevice)(nil)
