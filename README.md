@@ -1,10 +1,10 @@
-# go-ctaphid
+# go-ctap
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/go-ctap/ctaphid.svg)](https://pkg.go.dev/github.com/go-ctap/ctaphid)
-[![Go](https://github.com/go-ctap/ctaphid/actions/workflows/go.yml/badge.svg)](https://github.com/go-ctap/ctaphid/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/go-ctap/ctap.svg)](https://pkg.go.dev/github.com/go-ctap/ctap)
+[![Go](https://github.com/go-ctap/ctap/actions/workflows/go.yml/badge.svg)](https://github.com/go-ctap/ctap/actions/workflows/go.yml)
 
-go-ctaphid is an idiomatic Go library implementing the CTAPHID transport protocol to interact with FIDO2 authenticators,
-featuring a clean, modern API with multiple layers of abstraction.
+go-ctap is an idiomatic Go library for interacting with FIDO2 authenticators using CTAP.
+It exposes several abstraction levels, from raw CTAPHID transport framing to ergonomic authenticator workflows.
 
 > [!WARNING]
 > Work in progress! API may change during `v0.x`!
@@ -15,31 +15,41 @@ Library supports almost entire CTAP 2.2 specification, except few extensions whi
 (`hmac-secret-mc`, dedicated `largeBlob`, not to be confused with `largeBlobKey` which is supported).
 
 My current priorities are to write better tests and completely replace [sstallion/go-hid](https://github.com/sstallion/go-hid)
-with the [own](https://github.com/go-ctap/hid) `cgo`-free alternative.
+with the [go-ctap/hid](https://github.com/go-ctap/hid) `cgo`-free alternative.
 
 ## Key Features and Architecture
 
 The library exposes several abstraction levels, allowing you to choose the API that best suits your needs:
 
-1. **Transport Layer (`ctaphid`)**
+1. **Transport Layer (`transport/ctaphid`)**
 
    Direct access to the raw CTAPHID transport protocol. If you need maximum control, you can communicate with devices
    at the frame level.
 
-2. **Protocol Layer (`ctap`)**
+2. **Client Layer (`client`)**
 
-   Implements CTAP 2.2 protocol messaging atop the transport, letting you work with high-level commands and
-   CBOR-encoded messages.
+   Implements CTAP command messaging atop the transport, letting you call authenticator commands while still managing
+   the device handle, channel ID, PIN/UV auth tokens, and command inputs yourself.
 
-3. **Device Abstraction (`device`)**
+3. **Authenticator Layer (`authenticator`)**
 
-   Provides a convenient wrapper over the `ctap` package, managing device descriptor and abstracting channel (CID)
-   management, so you don’t have to handle these low-level details manually.
+   Provides a convenient wrapper over the `client` package, managing the HID device descriptor, channel ID (CID),
+   cached authenticator info, and common CTAP flows.
 
-4. **Scenario Helpers (`sugar`)** _(Mostly TODO now)_
+4. **Discovery Helpers (`discover`)**
 
-   A growing set of utility functions for common use-cases. These helpers streamline trivial or repetitive
-   scenarios, letting you get started quickly without deep protocol knowledge.
+   A set of helpers for finding and selecting authenticators, including user-presence based selection when
+   several authenticators are connected.
+
+5. **Crypto Helpers (`crypto`)**
+
+   Public helpers for CTAP-specific cryptography, including PIN/UV Auth Protocol One and Two, and LargeBlob
+   encryption/decryption. The lower-level `crypto/protocolone` and `crypto/protocoltwo` packages are available for
+   callers that need direct access to the protocol primitives.
+
+6. **Types (`ctaptypes`, `webauthntypes`)**
+
+   Shared CTAP and WebAuthn data structures used across the lower-level and higher-level APIs.
 
 ## Highlights
 
@@ -47,7 +57,7 @@ The library exposes several abstraction levels, allowing you to choose the API t
   Reset, CredentialManagement, and more.
 - Both low-level access and ergonomic, high-level APIs.
 - Modern Go design, making use of language features like iterators.
-- `cgo` is currently used only for macOS version (for HID transport), but FIDO2 protocol logic is pure Go.
+- `cgo` is currently used only for the macOS HID backend, but CTAP protocol logic is pure Go.
 
 ## Feature Matrix
 
@@ -107,7 +117,7 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [ ] hmac-secret-mc
 - [x] thirdPartyPayment
 
-#### WebAuhn
+#### WebAuthn
 
 - [x] credProps
 - [x] prf
@@ -117,7 +127,7 @@ The library exposes several abstraction levels, allowing you to choose the API t
 
 - [x] PIN/UV Auth Protocol One
 - [x] PIN/UV Auth Protocol Two
-- [x] Encrypt/Decrypt using `LargeBlobsKey` extension
+- [x] Encrypt/Decrypt using `largeBlobKey` extension
 
 ## Build Dependencies
 
@@ -129,5 +139,4 @@ For Linux systems, you'll need to install the following packages to build:
 ## Planned Improvements
 
 - [ ] Better tests (using virtual authenticator?)
-- [ ] Extended "sugar" helpers for common use-cases.
 - [ ] `cgo`-free version for macOS. See [go-hid](https://github.com/go-ctap/hid).

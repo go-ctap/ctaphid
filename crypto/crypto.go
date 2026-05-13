@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/go-ctap/ctaphid/crypto/protocolone"
-	"github.com/go-ctap/ctaphid/crypto/protocoltwo"
-	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctap/crypto/protocolone"
+	"github.com/go-ctap/ctap/crypto/protocoltwo"
+	"github.com/go-ctap/ctap/ctaptypes"
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
 	ecdhkey "github.com/ldclabs/cose/key/ecdh"

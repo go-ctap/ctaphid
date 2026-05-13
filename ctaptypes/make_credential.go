@@ -4,7 +4,7 @@ import (
 	"bytes"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/webauthntypes"
+	"github.com/go-ctap/ctap/webauthntypes"
 )
 
 type AuthenticatorMakeCredentialRequest struct {

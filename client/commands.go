@@ -1,4 +1,4 @@
-package ctap
+package client
 
 import (
 	"crypto/sha256"
@@ -11,11 +11,11 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/go-ctap/ctaphid/crypto"
-	"github.com/go-ctap/ctaphid/ctaphid"
-	"github.com/go-ctap/ctaphid/ctaptypes"
-	"github.com/go-ctap/ctaphid/options"
-	"github.com/go-ctap/ctaphid/webauthntypes"
+	"github.com/go-ctap/ctap/crypto"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/options"
+	"github.com/go-ctap/ctap/transport/ctaphid"
+	"github.com/go-ctap/ctap/webauthntypes"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/cose/key"

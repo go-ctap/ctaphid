@@ -1,4 +1,4 @@
-module github.com/go-ctap/ctaphid
+module github.com/go-ctap/ctap
 
 go 1.25.8
 

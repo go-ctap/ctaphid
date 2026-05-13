@@ -1,9 +1,9 @@
 package authenticator
 
 import (
-	"github.com/go-ctap/ctaphid/ctap"
-	"github.com/go-ctap/ctaphid/ctaptypes"
-	"github.com/go-ctap/ctaphid/webauthntypes"
+	"github.com/go-ctap/ctap/client"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/webauthntypes"
 )
 
 func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {
@@ -18,9 +18,9 @@ func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {
 }
 
 func (d *Device) normalizeAndValidateCurrentPIN(pin string) (string, error) {
-	return ctap.NormalizeAndValidatePIN(pin, ctaptypes.DefaultMinPINCodePoints)
+	return client.NormalizeAndValidatePIN(pin, ctaptypes.DefaultMinPINCodePoints)
 }
 
 func (d *Device) normalizeAndValidateNewPIN(pin string) (string, error) {
-	return ctap.NormalizeAndValidatePIN(pin, d.info.EffectiveMinPINLength())
+	return client.NormalizeAndValidatePIN(pin, d.info.EffectiveMinPINLength())
 }

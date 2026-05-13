@@ -1,7 +1,7 @@
 package ctaptypes
 
 import (
-	"github.com/go-ctap/ctaphid/webauthntypes"
+	"github.com/go-ctap/ctap/webauthntypes"
 	"github.com/ldclabs/cose/key"
 )
 

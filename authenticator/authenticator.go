@@ -14,12 +14,12 @@ import (
 	"sync"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/crypto"
-	"github.com/go-ctap/ctaphid/ctap"
-	"github.com/go-ctap/ctaphid/ctaphid"
-	"github.com/go-ctap/ctaphid/ctaptypes"
-	"github.com/go-ctap/ctaphid/options"
-	"github.com/go-ctap/ctaphid/webauthntypes"
+	"github.com/go-ctap/ctap/client"
+	"github.com/go-ctap/ctap/crypto"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/options"
+	"github.com/go-ctap/ctap/transport/ctaphid"
+	"github.com/go-ctap/ctap/webauthntypes"
 	"github.com/ldclabs/cose/key"
 	"github.com/samber/lo"
 )
@@ -31,7 +31,7 @@ type Device struct {
 	cid               [4]byte
 	info              ctaptypes.AuthenticatorGetInfoResponse
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol
-	ctapClient        *ctap.Client
+	ctapClient        *client.Client
 	encMode           cbor.EncMode
 	mu                sync.Mutex // global mutex to serialize requests to the device
 }
@@ -114,7 +114,7 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	d.cid = msg.CID
 
 	// Init CTAP2 client
-	d.ctapClient = ctap.NewClient(opts...)
+	d.ctapClient = client.NewClient(opts...)
 
 	info, err := d.ctapClient.GetInfo(d.device, d.cid)
 	if err != nil {
@@ -1062,7 +1062,7 @@ func (d *Device) Reset() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if err := ctap.Reset(d.device, d.cid); err != nil {
+	if err := client.Reset(d.device, d.cid); err != nil {
 		return err
 	}
 

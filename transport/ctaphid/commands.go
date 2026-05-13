@@ -6,7 +6,7 @@ import (
 	"io"
 	"slices"
 
-	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctap/ctaptypes"
 )
 
 func ensureDataLen(data []byte, min int) error {

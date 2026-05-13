@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/ctaphid"
-	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/transport/ctaphid"
 )
 
 const (

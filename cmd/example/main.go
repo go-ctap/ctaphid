@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/go-ctap/ctaphid/ctaptypes"
-	"github.com/go-ctap/ctaphid/options"
-	"github.com/go-ctap/ctaphid/sugar"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/discover"
+	"github.com/go-ctap/ctap/options"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 		Level: lvl,
 	}))
 
-	dev, err := sugar.SelectDevice(
+	dev, err := discover.SelectDevice(
 		// Comment if you are using Linux or macOS
 		//options.WithUseNamedPipes(),
 		options.WithLogger(logger),

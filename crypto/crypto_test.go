@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/go-ctap/ctaphid/ctaptypes"
+	"github.com/go-ctap/ctap/ctaptypes"
 	"github.com/ldclabs/cose/iana"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

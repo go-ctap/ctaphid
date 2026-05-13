@@ -1,4 +1,4 @@
-package ctap
+package client
 
 import (
 	"bytes"
@@ -11,11 +11,11 @@ import (
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/crypto"
-	"github.com/go-ctap/ctaphid/ctaphid"
-	"github.com/go-ctap/ctaphid/ctaptypes"
-	"github.com/go-ctap/ctaphid/internal/testhid"
-	"github.com/go-ctap/ctaphid/webauthntypes"
+	"github.com/go-ctap/ctap/crypto"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/internal/testhid"
+	"github.com/go-ctap/ctap/transport/ctaphid"
+	"github.com/go-ctap/ctap/webauthntypes"
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
 	ecdhkey "github.com/ldclabs/cose/key/ecdh"

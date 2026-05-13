@@ -1,13 +1,13 @@
-package sugar
+package discover
 
 import (
 	"context"
 	"errors"
 	"sync"
 
-	"github.com/go-ctap/ctaphid/authenticator"
-	"github.com/go-ctap/ctaphid/ctaptypes"
-	"github.com/go-ctap/ctaphid/options"
+	"github.com/go-ctap/ctap/authenticator"
+	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/options"
 	ghid "github.com/go-ctap/hid"
 	"github.com/samber/lo"
 

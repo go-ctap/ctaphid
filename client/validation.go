@@ -1,4 +1,4 @@
-package ctap
+package client
 
 import (
 	"fmt"

@@ -9,7 +9,7 @@ import (
 
 	"github.com/Microsoft/go-winio"
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctaphid/hidproxy"
+	"github.com/go-ctap/ctap/hidproxy"
 	ghid "github.com/go-ctap/hid"
 )
 
