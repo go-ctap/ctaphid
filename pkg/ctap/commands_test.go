@@ -255,10 +255,8 @@ func TestGetAssertionRequestShapeAndPINAuthParam(t *testing.T) {
 }
 
 func TestClientPINRequestShapes(t *testing.T) {
-	response := encodeCBOR(t, &ctaptypes.AuthenticatorClientPINResponse{})
-
 	t.Run("set PIN", func(t *testing.T) {
-		fake := newScriptedDevice(t, response)
+		fake := newScriptedDevice(t, nil)
 		err := NewClient().SetPIN(fake, testCID, ctaptypes.PinUvAuthProtocolOne, testKeyAgreement(t), "1234")
 		require.NoError(t, err)
 
@@ -272,7 +270,7 @@ func TestClientPINRequestShapes(t *testing.T) {
 	})
 
 	t.Run("change PIN", func(t *testing.T) {
-		fake := newScriptedDevice(t, response)
+		fake := newScriptedDevice(t, nil)
 		err := NewClient().ChangePIN(fake, testCID, ctaptypes.PinUvAuthProtocolOne, testKeyAgreement(t), "1234", "5678")
 		require.NoError(t, err)
 

@@ -318,14 +318,7 @@ func (cl *Client) SetPIN(
 	}
 	cl.logger.Debug("setPIN CBOR request", "hex", hex.EncodeToString(b))
 
-	respRaw, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(ctaptypes.AuthenticatorClientPIN)}, b))
-	if err != nil {
-		return err
-	}
-	cl.logger.Debug("setPIN CBOR response", "hex", hex.EncodeToString(respRaw.Data))
-
-	var resp *ctaptypes.AuthenticatorClientPINResponse
-	if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
+	if _, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(ctaptypes.AuthenticatorClientPIN)}, b)); err != nil {
 		return err
 	}
 
@@ -396,14 +389,7 @@ func (cl *Client) ChangePIN(
 	}
 	cl.logger.Debug("changePIN CBOR request", "hex", hex.EncodeToString(b))
 
-	respRaw, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(ctaptypes.AuthenticatorClientPIN)}, b))
-	if err != nil {
-		return err
-	}
-	cl.logger.Debug("changePIN CBOR response", "hex", hex.EncodeToString(respRaw.Data))
-
-	var resp *ctaptypes.AuthenticatorClientPINResponse
-	if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
+	if _, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(ctaptypes.AuthenticatorClientPIN)}, b)); err != nil {
 		return err
 	}
 
