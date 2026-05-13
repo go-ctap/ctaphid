@@ -11,19 +11,19 @@ import (
 
 	"github.com/go-ctap/ctap/crypto/protocolone"
 	"github.com/go-ctap/ctap/crypto/protocoltwo"
-	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/protocol"
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
 	ecdhkey "github.com/ldclabs/cose/key/ecdh"
 )
 
 type PinUvAuthProtocol struct {
-	Number             ctaptypes.PinUvAuthProtocol
+	Number             protocol.PinUvAuthProtocol
 	platformPrivateKey *ecdh.PrivateKey
 	platformCoseKey    key.Key
 }
 
-func NewPinUvAuthProtocol(number ctaptypes.PinUvAuthProtocol) (*PinUvAuthProtocol, error) {
+func NewPinUvAuthProtocol(number protocol.PinUvAuthProtocol) (*PinUvAuthProtocol, error) {
 	platformPrivkey, err := ecdh.P256().GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("cannot generate platform P-256 keypair: %w", err)
@@ -64,9 +64,9 @@ func (p *PinUvAuthProtocol) ECDH(peerCoseKey key.Key) ([]byte, error) {
 
 func (p *PinUvAuthProtocol) KDF(z []byte) ([]byte, error) {
 	switch p.Number {
-	case ctaptypes.PinUvAuthProtocolOne:
+	case protocol.PinUvAuthProtocolOne:
 		return protocolone.KDF(z), nil
-	case ctaptypes.PinUvAuthProtocolTwo:
+	case protocol.PinUvAuthProtocolTwo:
 		return protocoltwo.KDF(z)
 	default:
 		return nil, ErrInvalidAuthProtocol
@@ -75,9 +75,9 @@ func (p *PinUvAuthProtocol) KDF(z []byte) ([]byte, error) {
 
 func (p *PinUvAuthProtocol) Encrypt(sharedSecret []byte, demPlaintext []byte) ([]byte, error) {
 	switch p.Number {
-	case ctaptypes.PinUvAuthProtocolOne:
+	case protocol.PinUvAuthProtocolOne:
 		return protocolone.Encrypt(sharedSecret, demPlaintext)
-	case ctaptypes.PinUvAuthProtocolTwo:
+	case protocol.PinUvAuthProtocolTwo:
 		return protocoltwo.Encrypt(sharedSecret, demPlaintext)
 	default:
 		return nil, ErrInvalidAuthProtocol
@@ -86,9 +86,9 @@ func (p *PinUvAuthProtocol) Encrypt(sharedSecret []byte, demPlaintext []byte) ([
 
 func (p *PinUvAuthProtocol) Decrypt(sharedSecret []byte, demCiphertext []byte) ([]byte, error) {
 	switch p.Number {
-	case ctaptypes.PinUvAuthProtocolOne:
+	case protocol.PinUvAuthProtocolOne:
 		return protocolone.Decrypt(sharedSecret, demCiphertext)
-	case ctaptypes.PinUvAuthProtocolTwo:
+	case protocol.PinUvAuthProtocolTwo:
 		return protocoltwo.Decrypt(sharedSecret, demCiphertext)
 	default:
 		return nil, ErrInvalidAuthProtocol
@@ -104,40 +104,40 @@ func (p *PinUvAuthProtocol) Encapsulate(peerCoseKey key.Key) (key.Key, []byte, e
 	return p.platformCoseKey, sharedSecret, nil
 }
 
-func Authenticate(number ctaptypes.PinUvAuthProtocol, sharedSecret []byte, message []byte) []byte {
+func Authenticate(number protocol.PinUvAuthProtocol, sharedSecret []byte, message []byte) []byte {
 	switch number {
-	case ctaptypes.PinUvAuthProtocolOne:
+	case protocol.PinUvAuthProtocolOne:
 		return protocolone.Authenticate(sharedSecret, message)
-	case ctaptypes.PinUvAuthProtocolTwo:
+	case protocol.PinUvAuthProtocolTwo:
 		return protocoltwo.Authenticate(sharedSecret, message)
 	default:
 		panic("invalid auth protocol")
 	}
 }
 
-func EncryptLargeBlob(key []byte, origData []byte) (ctaptypes.LargeBlob, error) {
+func EncryptLargeBlob(key []byte, origData []byte) (protocol.LargeBlob, error) {
 	if len(key) != 32 {
-		return ctaptypes.LargeBlob{}, fmt.Errorf("invalid large blob key length: got %d, want 32", len(key))
+		return protocol.LargeBlob{}, fmt.Errorf("invalid large blob key length: got %d, want 32", len(key))
 	}
 
 	plaintext, err := compress(origData)
 	if err != nil {
-		return ctaptypes.LargeBlob{}, err
+		return protocol.LargeBlob{}, err
 	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return ctaptypes.LargeBlob{}, err
+		return protocol.LargeBlob{}, err
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return ctaptypes.LargeBlob{}, err
+		return protocol.LargeBlob{}, err
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
-		return ctaptypes.LargeBlob{}, err
+		return protocol.LargeBlob{}, err
 	}
 
 	origSize := len(origData)
@@ -145,14 +145,14 @@ func EncryptLargeBlob(key []byte, origData []byte) (ctaptypes.LargeBlob, error) 
 	binary.LittleEndian.PutUint64(origSizeBin, uint64(origSize))
 
 	ciphertext := gcm.Seal(nil, nonce, plaintext, slices.Concat([]byte("blob"), origSizeBin))
-	return ctaptypes.LargeBlob{
+	return protocol.LargeBlob{
 		Ciphertext: ciphertext,
 		Nonce:      nonce,
 		OrigSize:   uint(origSize),
 	}, nil
 }
 
-func DecryptLargeBlob(key []byte, blob ctaptypes.LargeBlob) ([]byte, error) {
+func DecryptLargeBlob(key []byte, blob protocol.LargeBlob) ([]byte, error) {
 	if len(key) != 32 {
 		return nil, fmt.Errorf("invalid large blob key length: got %d, want 32", len(key))
 	}

@@ -6,14 +6,14 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCBORSkipsKeepaliveBeforeSuccessResponse(t *testing.T) {
 	cid := ChannelID{1, 2, 3, 4}
-	request := []byte{byte(ctaptypes.AuthenticatorGetInfo)}
+	request := []byte{byte(protocol.AuthenticatorGetInfo)}
 	response := []byte{byte(CTAP2_OK), 0xa1, 0x01, 0x02}
 	reads := bytes.NewBuffer(nil)
 	reads.Write(rawResponseMessage(t, cid, CTAPHID_KEEPALIVE, []byte{byte(STATUS_PROCESSING)}))
@@ -30,7 +30,7 @@ func TestCBORSkipsKeepaliveBeforeSuccessResponse(t *testing.T) {
 
 func TestCBORReturnsTypedCTAPError(t *testing.T) {
 	cid := ChannelID{1, 2, 3, 4}
-	request := []byte{byte(ctaptypes.AuthenticatorGetInfo)}
+	request := []byte{byte(protocol.AuthenticatorGetInfo)}
 	response := []byte{byte(CTAP2_ERR_INVALID_CBOR)}
 	dev := &scriptedDevice{
 		reads: bytes.NewReader(rawResponseMessage(t, cid, CTAPHID_CBOR, response)),
@@ -41,7 +41,7 @@ func TestCBORReturnsTypedCTAPError(t *testing.T) {
 
 	var ctapErr *CTAPError
 	require.True(t, errors.As(err, &ctapErr))
-	assert.Equal(t, ctaptypes.AuthenticatorGetInfo, ctapErr.Command)
+	assert.Equal(t, protocol.AuthenticatorGetInfo, ctapErr.Command)
 	assert.Equal(t, CTAP2_ERR_INVALID_CBOR, ctapErr.StatusCode)
 	assert.Contains(t, err.Error(), "AuthenticatorGetInfo failed")
 	assertSingleReportRequest(t, dev.writes.Bytes(), cid, CTAPHID_CBOR, request)

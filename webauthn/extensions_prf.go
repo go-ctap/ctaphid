@@ -1,4 +1,4 @@
-package webauthntypes
+package webauthn
 
 type AuthenticationExtensionsPRFValues struct {
 	First  []byte `cbor:"first" json:"first"`

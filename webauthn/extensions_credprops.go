@@ -1,4 +1,4 @@
-package webauthntypes
+package webauthn
 
 type CreateCredentialPropertiesInputs struct {
 	CredentialProperties bool `cbor:"credProps"`

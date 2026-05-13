@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/go-ctap/ctap/ctaptypes"
 	"github.com/go-ctap/ctap/discover"
 	"github.com/go-ctap/ctap/options"
+	"github.com/go-ctap/ctap/protocol"
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 
 	token, err := dev.GetPinUvAuthTokenUsingPIN(
 		"12345678",
-		ctaptypes.PermissionCredentialManagement,
+		protocol.PermissionCredentialManagement,
 		"",
 	)
 	if err != nil {
@@ -55,7 +55,7 @@ func main() {
 		metadata.MaxPossibleRemainingResidentCredentialsCount,
 	)
 
-	rps := make([]ctaptypes.AuthenticatorCredentialManagementResponse, 0)
+	rps := make([]protocol.AuthenticatorCredentialManagementResponse, 0)
 	for rp, err := range dev.EnumerateRPs(token) {
 		if err != nil {
 			panic(err)
@@ -64,7 +64,7 @@ func main() {
 		rps = append(rps, rp)
 	}
 
-	creds := make([]ctaptypes.AuthenticatorCredentialManagementResponse, 0)
+	creds := make([]protocol.AuthenticatorCredentialManagementResponse, 0)
 	for i, rp := range rps {
 		for cred, err := range dev.EnumerateCredentials(token, rp.RPIDHash) {
 			if err != nil {

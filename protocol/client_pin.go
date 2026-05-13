@@ -1,4 +1,4 @@
-package ctaptypes
+package protocol
 
 import "github.com/ldclabs/cose/key"
 

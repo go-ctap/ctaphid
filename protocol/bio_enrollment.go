@@ -1,4 +1,4 @@
-package ctaptypes
+package protocol
 
 type AuthenticatorBioEnrollmentRequest struct {
 	Modality          BioModality                   `cbor:"1,keyasint,omitempty"`

@@ -47,9 +47,15 @@ The library exposes several abstraction levels, allowing you to choose the API t
    encryption/decryption. The lower-level `crypto/protocolone` and `crypto/protocoltwo` packages are available for
    callers that need direct access to the protocol primitives.
 
-6. **Types (`ctaptypes`, `webauthntypes`)**
+6. **Protocol Model (`protocol`)**
 
-   Shared CTAP and WebAuthn data structures used across the lower-level and higher-level APIs.
+   CTAP command constants, request/response wire structures, options, permissions, parsed authenticator data, and
+   CTAP extension wire inputs/outputs.
+
+7. **Domain Types (`credential`, `attestation`, `extension`, `webauthn`)**
+
+   Shared public-key credential primitives, attestation statement formats, extension identifiers/policies, and
+   WebAuthn-shaped extension input/output structures used across the lower-level and higher-level APIs.
 
 ## Highlights
 
@@ -61,45 +67,94 @@ The library exposes several abstraction levels, allowing you to choose the API t
 
 ## Feature Matrix
 
-### CTAP 2.2
+### CTAP 2.3
 
 - [x] MakeCredential
+    - [x] attestationFormatsPreference
+    - [x] unsignedExtensionOutputs
+    - [ ] credential-store state invalidation for discoverable credentials
 - [x] GetAssertion / GetNextAssertion
+    - [x] unsignedExtensionOutputs
 - [x] GetInfo
+    - [x] `attestationFormats`
+    - [x] `uvCountSinceLastPinEntry`
+    - [x] `longTouchForReset`
+    - [x] `encIdentifier`
+    - [x] `encCredStoreState`
+    - [x] `transportsForReset`
+    - [x] `pinComplexityPolicy`
+    - [x] `pinComplexityPolicyURL`
+    - [x] `maxPINLength`
+    - [x] `authenticatorConfigCommands`
+    - [x] `perCredMgmtRO` option
 - [x] ClientPIN
-  - [x] getPINRetries
-  - [x] getKeyAgreement
-  - [x] setPIN
-  - [x] changePIN
-  - [x] getPinToken
-  - [x] getPinUvAuthTokenUsingUvWithPermissions
-  - [x] getUVRetries
-  - [x] getPinUvAuthTokenUsingPinWithPermissions
+    - [x] getPINRetries
+    - [x] getKeyAgreement
+    - [x] setPIN
+    - [x] changePIN
+    - [x] getPinToken
+    - [x] getPinUvAuthTokenUsingUvWithPermissions
+    - [x] getUVRetries
+    - [x] getPinUvAuthTokenUsingPinWithPermissions
+    - [ ] persistent PIN/UV auth token state
+    - [ ] `pcmr` permission
+    - [ ] `perCredMgmtRO` flow
 - [x] Reset
+    - [ ] `transportsForReset` handling
+    - [ ] long-touch reset handling
+    - [ ] reset unsupported / alternate reset handling
+    - [ ] credential-store cache invalidation after reset
 - [x] BioEnrollment
-  - [x] enrollBegin
-  - [x] enrollCaptureNextSample
-  - [x] cancelCurrentEnrollment
-  - [x] enumerateEnrollments
-  - [x] setFriendlyName
-  - [x] removeEnrollment
-  - [x] getFingerprintSensorInfo
+    - [x] enrollBegin
+    - [x] enrollCaptureNextSample
+    - [x] cancelCurrentEnrollment
+    - [x] enumerateEnrollments
+    - [x] setFriendlyName
+    - [x] removeEnrollment
+    - [x] getFingerprintSensorInfo
 - [x] CredentialManagement
-  - [x] getCredsMetadata
-  - [x] enumerateRPsBegin / enumerateRPsGetNextRP
-  - [x] enumerateCredentialsBegin / enumerateCredentialsGetNextCredential
-  - [x] deleteCredential
-  - [x] updateUserInformation
+    - [x] getCredsMetadata
+    - [x] enumerateRPsBegin / enumerateRPsGetNextRP
+    - [x] enumerateCredentialsBegin / enumerateCredentialsGetNextCredential
+    - [x] deleteCredential
+    - [x] updateUserInformation
+    - [ ] read-only persistent credential management via `pcmr`
+    - [ ] `encCredStoreState`-based cache invalidation
 - [x] Selection
 - [x] LargeBlobs
-  - [x] raw get
-  - [x] raw set
-  - [x] get serialized large-blob array
-  - [x] set serialized large-blob array
+    - [x] raw get
+    - [x] raw set
+    - [x] get serialized large-blob array
+    - [x] set serialized large-blob array
+    - [ ] `largeBlob` extension integration
+    - [x] unsigned `largeBlob` extension outputs
 - [x] Config
-  - [x] enableEnterpriseAttestation
-  - [x] toggleAlwaysUv
-  - [x] setMinPINLength
+    - [x] enableEnterpriseAttestation
+    - [x] toggleAlwaysUv
+    - [x] setMinPINLength
+    - [ ] enableLongTouchForReset
+    - [x] `authenticatorConfigCommands` feature detection
+    - [ ] `setMinPINLength` CTAP 2.3 refinements
+    - [ ] PIN complexity policy CTAP 2.3 refinements
+- [ ] Hybrid Transports
+    - [ ] QR-initiated transactions
+    - [ ] state-assisted transactions
+    - [ ] post-handshake `getInfo`
+    - [ ] post-handshake supported features: `ctap`
+    - [ ] post-handshake supported features: `dc`
+    - [ ] WebSocket data transfer channel
+    - [ ] BLE data transfer channel
+    - [ ] multiple data transfer channels / QR key `6`
+- [ ] JSON-based Messages / Digital Credentials
+    - [ ] tunnel message type `3`
+    - [ ] JSON-based request
+    - [ ] JSON-based response
+- [ ] NFC / ISO7816 refinements
+    - [ ] ISO7816 contact `smart-card` interface
+    - [ ] explicit FIDO applet selection
+    - [ ] applet deselection handling
+    - [ ] `NFCCTAP_GETRESPONSE` timeout handling
+    - [ ] `NFCCTAP_GETRESPONSE` cancel handling
 - [x] Prototype BioEnrollment
 - [x] Prototype CredentialManagement
 
@@ -111,10 +166,14 @@ The library exposes several abstraction levels, allowing you to choose the API t
 - [x] credBlob
 - [x] largeBlobKey
 - [ ] largeBlob
+    - [ ] MakeCredential `support`
+    - [ ] MakeCredential `supported` output
+    - [ ] GetAssertion read
+    - [ ] GetAssertion write
 - [x] minPinLength
 - [x] pinComplexityPolicy
 - [x] hmac-secret
-- [ ] hmac-secret-mc
+- [x] hmac-secret-mc (not tested)
 - [x] thirdPartyPayment
 
 #### WebAuthn
@@ -127,16 +186,13 @@ The library exposes several abstraction levels, allowing you to choose the API t
 
 - [x] PIN/UV Auth Protocol One
 - [x] PIN/UV Auth Protocol Two
-- [x] Encrypt/Decrypt using `largeBlobKey` extension
-
-## Build Dependencies
-
-### Linux
-For Linux systems, you'll need to install the following packages to build:
-- `libudev-dev`: udev device management library
-- `libusb-1.0-0-dev`: USB device access library
+- [x] Encrypt/Decrypt using `LargeBlobsKey` extension
+- [ ] persistent PIN/UV auth token support
+- [ ] Decrypt `GetInfo.encIdentifier`
+- [ ] Decrypt `GetInfo.encCredStoreState`
 
 ## Planned Improvements
 
+- [ ] CTAP 2.2/2.3 support
 - [ ] Better tests (using virtual authenticator?)
 - [ ] `cgo`-free version for macOS. See [go-hid](https://github.com/go-ctap/hid).

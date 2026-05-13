@@ -1,4 +1,4 @@
-package ctaptypes
+package protocol
 
 type AuthenticatorConfigRequest struct {
 	SubCommand        ConfigSubCommand  `cbor:"1,keyasint"`

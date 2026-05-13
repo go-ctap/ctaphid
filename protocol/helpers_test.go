@@ -1,4 +1,4 @@
-package ctaptypes
+package protocol
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package webauthntypes
+package webauthn
 
 type CreateAuthenticationExtensionsClientInputs struct {
 	*CreateCredentialBlobInputs

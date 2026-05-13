@@ -1,4 +1,6 @@
-package webauthntypes
+package webauthn
+
+import "github.com/go-ctap/ctap/credential"
 
 type PaymentEntityLogo struct {
 	URL   string `cbor:"url" json:"url"`
@@ -18,8 +20,8 @@ type PaymentCredentialInstrument struct {
 }
 
 type AuthenticationExtensionsPaymentInputs struct {
-	IsPayment                    bool                            `cbor:"payment"`
-	BrowserBoundPubKeyCredParams []PublicKeyCredentialParameters `cbor:"browserBoundPubKeyCredParams"`
+	IsPayment                    bool                                       `cbor:"payment"`
+	BrowserBoundPubKeyCredParams []credential.PublicKeyCredentialParameters `cbor:"browserBoundPubKeyCredParams"`
 
 	RPID                 string                       `cbor:"rpId"`
 	TopOrigin            string                       `cbor:"topOrigin"`

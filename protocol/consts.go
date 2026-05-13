@@ -1,5 +1,5 @@
 //go:generate stringer -type=Command,ClientPINSubCommand,BioEnrollmentSubCommand,LastEnrollSampleStatus,CredentialManagementSubCommand,ConfigSubCommand,Permission -output=consts_string.go
-package ctaptypes
+package protocol
 
 type Command byte
 

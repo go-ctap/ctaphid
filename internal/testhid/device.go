@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/protocol"
 	"github.com/go-ctap/ctap/transport/ctaphid"
 )
 
@@ -134,13 +134,13 @@ func (d *Device) FirstRequest(t testing.TB) Request {
 	return requests[0]
 }
 
-func (d *Device) FirstCTAPPayload(t testing.TB) (ctaptypes.Command, []byte) {
+func (d *Device) FirstCTAPPayload(t testing.TB) (protocol.Command, []byte) {
 	t.Helper()
 
 	return d.FirstRequest(t).CTAPPayload(t)
 }
 
-func (d *Device) FirstCTAPRequestMap(t testing.TB) (ctaptypes.Command, map[uint64]any) {
+func (d *Device) FirstCTAPRequestMap(t testing.TB) (protocol.Command, map[uint64]any) {
 	t.Helper()
 
 	return d.FirstRequest(t).CTAPRequestMap(t)
@@ -160,7 +160,7 @@ func ParseRequests(written []byte) ([]Request, error) {
 	return requests, nil
 }
 
-func (r Request) CTAPPayload(t testing.TB) (ctaptypes.Command, []byte) {
+func (r Request) CTAPPayload(t testing.TB) (protocol.Command, []byte) {
 	t.Helper()
 
 	if r.Command != ctaphid.CTAPHID_CBOR {
@@ -170,10 +170,10 @@ func (r Request) CTAPPayload(t testing.TB) (ctaptypes.Command, []byte) {
 		t.Fatalf("expected CTAP command byte in CTAPHID_CBOR request")
 	}
 
-	return ctaptypes.Command(r.Data[0]), append([]byte(nil), r.Data[1:]...)
+	return protocol.Command(r.Data[0]), append([]byte(nil), r.Data[1:]...)
 }
 
-func (r Request) CTAPRequestMap(t testing.TB) (ctaptypes.Command, map[uint64]any) {
+func (r Request) CTAPRequestMap(t testing.TB) (protocol.Command, map[uint64]any) {
 	t.Helper()
 
 	command, requestCBOR := r.CTAPPayload(t)

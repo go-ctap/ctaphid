@@ -3,7 +3,7 @@ package ctaphid
 import (
 	"errors"
 
-	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/protocol"
 )
 
 var (
@@ -14,11 +14,11 @@ var (
 )
 
 type CTAPError struct {
-	Command    ctaptypes.Command
+	Command    protocol.Command
 	StatusCode StatusCode
 }
 
-func newCTAPError(cmd ctaptypes.Command, code StatusCode) *CTAPError {
+func newCTAPError(cmd protocol.Command, code StatusCode) *CTAPError {
 	return &CTAPError{
 		Command:    cmd,
 		StatusCode: code,

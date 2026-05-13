@@ -2,11 +2,11 @@ package authenticator
 
 import (
 	"github.com/go-ctap/ctap/client"
-	"github.com/go-ctap/ctap/ctaptypes"
-	"github.com/go-ctap/ctap/webauthntypes"
+	"github.com/go-ctap/ctap/protocol"
+	"github.com/go-ctap/ctap/webauthn"
 )
 
-func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {
+func validateHMACGetSecretSalts(input webauthn.HMACGetSecretInput) error {
 	if len(input.Salt1) != 32 {
 		return newErrorMessage(ErrInvalidSaltSize, "salt1 must be exactly 32 bytes")
 	}
@@ -18,7 +18,7 @@ func validateHMACGetSecretSalts(input webauthntypes.HMACGetSecretInput) error {
 }
 
 func (d *Device) normalizeAndValidateCurrentPIN(pin string) (string, error) {
-	return client.NormalizeAndValidatePIN(pin, ctaptypes.DefaultMinPINCodePoints)
+	return client.NormalizeAndValidatePIN(pin, protocol.DefaultMinPINCodePoints)
 }
 
 func (d *Device) normalizeAndValidateNewPIN(pin string) (string, error) {

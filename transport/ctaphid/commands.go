@@ -6,7 +6,7 @@ import (
 	"io"
 	"slices"
 
-	"github.com/go-ctap/ctap/ctaptypes"
+	"github.com/go-ctap/ctap/protocol"
 )
 
 func ensureDataLen(data []byte, min int) error {
@@ -60,7 +60,7 @@ read:
 					if err := ensureDataLen(p.data, 1); err != nil {
 						return CBORResponse{}, err
 					}
-					command := ctaptypes.Command(data[0])
+					command := protocol.Command(data[0])
 					code := StatusCode(p.data[0])
 					if code != CTAP2_OK {
 						return CBORResponse{}, newCTAPError(command, code)

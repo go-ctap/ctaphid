@@ -1,16 +1,11 @@
-package webauthntypes
+package webauthn
 
-type LargeBlobSupport string
-
-const (
-	LargeBlobSupportRequired  LargeBlobSupport = "required"
-	LargeBlobSupportPreferred LargeBlobSupport = "preferred"
-)
+import "github.com/go-ctap/ctap/extension"
 
 type AuthenticationExtensionsLargeBlobInputs struct {
-	Support LargeBlobSupport `cbor:"support"`
-	Read    bool             `cbor:"read"`
-	Write   []byte           `cbor:"write"`
+	Support extension.LargeBlobSupport `cbor:"support"`
+	Read    bool                       `cbor:"read"`
+	Write   []byte                     `cbor:"write"`
 }
 type LargeBlobInputs struct {
 	LargeBlob AuthenticationExtensionsLargeBlobInputs `cbor:"largeBlob"`

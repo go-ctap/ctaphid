@@ -1,4 +1,4 @@
-package webauthntypes
+package webauthn
 
 type CreateCredentialBlobInputs struct {
 	CredBlob []byte `cbor:"credBlob"`

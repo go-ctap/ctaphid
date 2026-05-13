@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/go-ctap/ctap/authenticator"
-	"github.com/go-ctap/ctap/ctaptypes"
 	"github.com/go-ctap/ctap/options"
+	"github.com/go-ctap/ctap/protocol"
 	ghid "github.com/go-ctap/hid"
 	"github.com/samber/lo"
 
@@ -70,9 +70,9 @@ func SelectDevice(opts ...options.Option) (*authenticator.Device, error) {
 		}
 
 		info := dev.GetInfo()
-		if !info.Versions.Supports(ctaptypes.FIDO_2_1) &&
-			!info.Versions.Supports(ctaptypes.FIDO_2_1_PRE) &&
-			!info.Versions.Supports(ctaptypes.FIDO_2_3) {
+		if !info.Versions.Supports(protocol.FIDO_2_1) &&
+			!info.Versions.Supports(protocol.FIDO_2_1_PRE) &&
+			!info.Versions.Supports(protocol.FIDO_2_3) {
 			// We need to close this device because it's not supported.
 			_ = dev.Close()
 			continue

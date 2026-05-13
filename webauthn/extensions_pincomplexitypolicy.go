@@ -1,4 +1,4 @@
-package webauthntypes
+package webauthn
 
 type CreatePinComplexityPolicyInputs struct {
 	PinComplexityPolicy bool `cbor:"pinComplexityPolicy"`

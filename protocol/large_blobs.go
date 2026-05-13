@@ -1,4 +1,4 @@
-package ctaptypes
+package protocol
 
 type AuthenticatorLargeBlobsRequest struct {
 	Get               uint              `cbor:"1,keyasint,omitempty"`

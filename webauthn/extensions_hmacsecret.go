@@ -1,4 +1,4 @@
-package webauthntypes
+package webauthn
 
 type CreateHMACSecretInputs struct {
 	HMACCreateSecret bool `cbor:"hmacCreateSecret"`

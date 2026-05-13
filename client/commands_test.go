@@ -11,11 +11,12 @@ import (
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/go-ctap/ctap/attestation"
+	"github.com/go-ctap/ctap/credential"
 	"github.com/go-ctap/ctap/crypto"
-	"github.com/go-ctap/ctap/ctaptypes"
 	"github.com/go-ctap/ctap/internal/testhid"
+	"github.com/go-ctap/ctap/protocol"
 	"github.com/go-ctap/ctap/transport/ctaphid"
-	"github.com/go-ctap/ctap/webauthntypes"
 	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
 	ecdhkey "github.com/ldclabs/cose/key/ecdh"
@@ -106,21 +107,21 @@ func TestNormalizeAndValidatePIN(t *testing.T) {
 func TestMakeCredentialRequestShapeAndPINAuthParam(t *testing.T) {
 	clientDataHash := testClientDataHash()
 	token := pinUvAuthToken()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorMakeCredentialResponse{
-		Format:      webauthntypes.AttestationStatementFormatIdentifierPacked,
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorMakeCredentialResponse{
+		Format:      attestation.AttestationStatementFormatIdentifierPacked,
 		AuthDataRaw: minimalAuthData(),
 	}))
 
 	resp, err := NewClient().MakeCredential(
 		fake,
 		testCID,
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
 		clientDataHash,
-		webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com", Name: "Example"},
-		webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id"), Name: "user"},
-		[]webauthntypes.PublicKeyCredentialParameters{{
-			Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+		credential.PublicKeyCredentialRpEntity{ID: "example.com", Name: "Example"},
+		credential.PublicKeyCredentialUserEntity{ID: []byte("user-id"), Name: "user"},
+		[]credential.PublicKeyCredentialParameters{{
+			Type:      credential.PublicKeyCredentialTypePublicKey,
 			Algorithm: -7,
 		}},
 		nil,
@@ -133,18 +134,18 @@ func TestMakeCredentialRequestShapeAndPINAuthParam(t *testing.T) {
 	require.NotNil(t, resp)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorMakeCredential, command)
+	assert.Equal(t, protocol.AuthenticatorMakeCredential, command)
 	assertRequestKeys(t, request, 1, 2, 3, 4, 8, 9)
 
 	assert.Equal(t, clientDataHash, request[uint64(1)])
-	assert.Equal(t, crypto.Authenticate(ctaptypes.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(8)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(9)])
+	assert.Equal(t, crypto.Authenticate(protocol.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(8)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(9)])
 }
 
 func TestMakeCredentialMinimalRequestOmitsEmptyExcludeList(t *testing.T) {
 	clientDataHash := testClientDataHash()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorMakeCredentialResponse{
-		Format:      webauthntypes.AttestationStatementFormatIdentifierPacked,
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorMakeCredentialResponse{
+		Format:      attestation.AttestationStatementFormatIdentifierPacked,
 		AuthDataRaw: minimalAuthData(),
 	}))
 
@@ -154,13 +155,13 @@ func TestMakeCredentialMinimalRequestOmitsEmptyExcludeList(t *testing.T) {
 		0,
 		nil,
 		clientDataHash,
-		webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com"},
-		webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
-		[]webauthntypes.PublicKeyCredentialParameters{{
-			Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+		credential.PublicKeyCredentialRpEntity{ID: "example.com"},
+		credential.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
+		[]credential.PublicKeyCredentialParameters{{
+			Type:      credential.PublicKeyCredentialTypePublicKey,
 			Algorithm: -7,
 		}},
-		[]webauthntypes.PublicKeyCredentialDescriptor{},
+		[]credential.PublicKeyCredentialDescriptor{},
 		nil,
 		nil,
 		0,
@@ -170,55 +171,55 @@ func TestMakeCredentialMinimalRequestOmitsEmptyExcludeList(t *testing.T) {
 	require.NotNil(t, resp.AuthData)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorMakeCredential, command)
+	assert.Equal(t, protocol.AuthenticatorMakeCredential, command)
 	assertRequestKeys(t, request, 1, 2, 3, 4)
 }
 
 func TestMakeCredentialFullRequestShape(t *testing.T) {
 	clientDataHash := testClientDataHash()
 	token := pinUvAuthToken()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorMakeCredentialResponse{
-		Format:      webauthntypes.AttestationStatementFormatIdentifierPacked,
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorMakeCredentialResponse{
+		Format:      attestation.AttestationStatementFormatIdentifierPacked,
 		AuthDataRaw: minimalAuthData(),
 	}))
 
 	resp, err := NewClient().MakeCredential(
 		fake,
 		testCID,
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
 		clientDataHash,
-		webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com", Name: "Example"},
-		webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id"), Name: "user"},
-		[]webauthntypes.PublicKeyCredentialParameters{{
-			Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+		credential.PublicKeyCredentialRpEntity{ID: "example.com", Name: "Example"},
+		credential.PublicKeyCredentialUserEntity{ID: []byte("user-id"), Name: "user"},
+		[]credential.PublicKeyCredentialParameters{{
+			Type:      credential.PublicKeyCredentialTypePublicKey,
 			Algorithm: -7,
 		}},
-		[]webauthntypes.PublicKeyCredentialDescriptor{{
-			Type: webauthntypes.PublicKeyCredentialTypePublicKey,
+		[]credential.PublicKeyCredentialDescriptor{{
+			Type: credential.PublicKeyCredentialTypePublicKey,
 			ID:   []byte("credential-id"),
 		}},
-		&ctaptypes.CreateExtensionInputs{
-			CreateCredProtectInput: &ctaptypes.CreateCredProtectInput{CredProtect: 2},
+		&protocol.CreateExtensionInputs{
+			CreateCredProtectInput: &protocol.CreateCredProtectInput{CredProtect: 2},
 		},
-		map[ctaptypes.Option]bool{
-			ctaptypes.OptionResidentKeys:     true,
-			ctaptypes.OptionUserVerification: false,
+		map[protocol.Option]bool{
+			protocol.OptionResidentKeys:     true,
+			protocol.OptionUserVerification: false,
 		},
 		1,
-		[]webauthntypes.AttestationStatementFormatIdentifier{
-			webauthntypes.AttestationStatementFormatIdentifierPacked,
-			webauthntypes.AttestationStatementFormatIdentifierNone,
+		[]attestation.AttestationStatementFormatIdentifier{
+			attestation.AttestationStatementFormatIdentifierPacked,
+			attestation.AttestationStatementFormatIdentifierNone,
 		},
 	)
 	require.NoError(t, err)
 	require.NotNil(t, resp.AuthData)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorMakeCredential, command)
+	assert.Equal(t, protocol.AuthenticatorMakeCredential, command)
 	assertRequestKeys(t, request, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
-	assert.Equal(t, crypto.Authenticate(ctaptypes.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(8)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(9)])
+	assert.Equal(t, crypto.Authenticate(protocol.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(8)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(9)])
 	assert.Equal(t, uint64(1), request[uint64(10)])
 }
 
@@ -231,10 +232,10 @@ func TestMakeCredentialRejectsInvalidClientDataHashBeforeCommand(t *testing.T) {
 		0,
 		nil,
 		[]byte("too-short"),
-		webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com"},
-		webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
-		[]webauthntypes.PublicKeyCredentialParameters{{
-			Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+		credential.PublicKeyCredentialRpEntity{ID: "example.com"},
+		credential.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
+		[]credential.PublicKeyCredentialParameters{{
+			Type:      credential.PublicKeyCredentialTypePublicKey,
 			Algorithm: -7,
 		}},
 		nil,
@@ -257,10 +258,10 @@ func TestMakeCredentialReturnsResponseDecodeErrors(t *testing.T) {
 			0,
 			nil,
 			testClientDataHash(),
-			webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com"},
-			webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
-			[]webauthntypes.PublicKeyCredentialParameters{{
-				Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+			credential.PublicKeyCredentialRpEntity{ID: "example.com"},
+			credential.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
+			[]credential.PublicKeyCredentialParameters{{
+				Type:      credential.PublicKeyCredentialTypePublicKey,
 				Algorithm: -7,
 			}},
 			nil,
@@ -273,8 +274,8 @@ func TestMakeCredentialReturnsResponseDecodeErrors(t *testing.T) {
 	})
 
 	t.Run("invalid authData", func(t *testing.T) {
-		fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorMakeCredentialResponse{
-			Format:      webauthntypes.AttestationStatementFormatIdentifierPacked,
+		fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorMakeCredentialResponse{
+			Format:      attestation.AttestationStatementFormatIdentifierPacked,
 			AuthDataRaw: []byte{1},
 		}))
 
@@ -284,10 +285,10 @@ func TestMakeCredentialReturnsResponseDecodeErrors(t *testing.T) {
 			0,
 			nil,
 			testClientDataHash(),
-			webauthntypes.PublicKeyCredentialRpEntity{ID: "example.com"},
-			webauthntypes.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
-			[]webauthntypes.PublicKeyCredentialParameters{{
-				Type:      webauthntypes.PublicKeyCredentialTypePublicKey,
+			credential.PublicKeyCredentialRpEntity{ID: "example.com"},
+			credential.PublicKeyCredentialUserEntity{ID: []byte("user-id")},
+			[]credential.PublicKeyCredentialParameters{{
+				Type:      credential.PublicKeyCredentialTypePublicKey,
 				Algorithm: -7,
 			}},
 			nil,
@@ -303,7 +304,7 @@ func TestMakeCredentialReturnsResponseDecodeErrors(t *testing.T) {
 func TestGetAssertionRequestShapeAndPINAuthParam(t *testing.T) {
 	clientDataHash := testClientDataHash()
 	token := pinUvAuthToken()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),
 		Signature:   []byte{1},
 	}))
@@ -312,7 +313,7 @@ func TestGetAssertionRequestShapeAndPINAuthParam(t *testing.T) {
 	for assertion, err := range NewClient().GetAssertion(
 		fake,
 		testCID,
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
 		"example.com",
 		clientDataHash,
@@ -327,18 +328,18 @@ func TestGetAssertionRequestShapeAndPINAuthParam(t *testing.T) {
 	require.Equal(t, 1, assertions)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorGetAssertion, command)
+	assert.Equal(t, protocol.AuthenticatorGetAssertion, command)
 	assertRequestKeys(t, request, 1, 2, 6, 7)
 
 	assert.Equal(t, "example.com", request[uint64(1)])
 	assert.Equal(t, clientDataHash, request[uint64(2)])
-	assert.Equal(t, crypto.Authenticate(ctaptypes.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(6)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(7)])
+	assert.Equal(t, crypto.Authenticate(protocol.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(6)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(7)])
 }
 
 func TestGetAssertionMinimalRequestOmitsEmptyAllowList(t *testing.T) {
 	clientDataHash := testClientDataHash()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),
 		Signature:   []byte{1},
 	}))
@@ -351,7 +352,7 @@ func TestGetAssertionMinimalRequestOmitsEmptyAllowList(t *testing.T) {
 		nil,
 		"example.com",
 		clientDataHash,
-		[]webauthntypes.PublicKeyCredentialDescriptor{},
+		[]credential.PublicKeyCredentialDescriptor{},
 		nil,
 		nil,
 	) {
@@ -362,14 +363,14 @@ func TestGetAssertionMinimalRequestOmitsEmptyAllowList(t *testing.T) {
 	require.Equal(t, 1, assertions)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorGetAssertion, command)
+	assert.Equal(t, protocol.AuthenticatorGetAssertion, command)
 	assertRequestKeys(t, request, 1, 2)
 }
 
 func TestGetAssertionFullRequestShape(t *testing.T) {
 	clientDataHash := testClientDataHash()
 	token := pinUvAuthToken()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),
 		Signature:   []byte{1},
 	}))
@@ -378,20 +379,20 @@ func TestGetAssertionFullRequestShape(t *testing.T) {
 	for assertion, err := range NewClient().GetAssertion(
 		fake,
 		testCID,
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
 		"example.com",
 		clientDataHash,
-		[]webauthntypes.PublicKeyCredentialDescriptor{{
-			Type: webauthntypes.PublicKeyCredentialTypePublicKey,
+		[]credential.PublicKeyCredentialDescriptor{{
+			Type: credential.PublicKeyCredentialTypePublicKey,
 			ID:   []byte("credential-id"),
 		}},
-		&ctaptypes.GetExtensionInputs{
-			GetCredBlobInput: &ctaptypes.GetCredBlobInput{CredBlob: true},
+		&protocol.GetExtensionInputs{
+			GetCredBlobInput: &protocol.GetCredBlobInput{CredBlob: true},
 		},
-		map[ctaptypes.Option]bool{
-			ctaptypes.OptionUserPresence:     true,
-			ctaptypes.OptionUserVerification: false,
+		map[protocol.Option]bool{
+			protocol.OptionUserPresence:     true,
+			protocol.OptionUserVerification: false,
 		},
 	) {
 		require.NoError(t, err)
@@ -401,10 +402,10 @@ func TestGetAssertionFullRequestShape(t *testing.T) {
 	require.Equal(t, 1, assertions)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorGetAssertion, command)
+	assert.Equal(t, protocol.AuthenticatorGetAssertion, command)
 	assertRequestKeys(t, request, 1, 2, 3, 4, 5, 6, 7)
-	assert.Equal(t, crypto.Authenticate(ctaptypes.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(6)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(7)])
+	assert.Equal(t, crypto.Authenticate(protocol.PinUvAuthProtocolOne, token, clientDataHash), request[uint64(6)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(7)])
 }
 
 func TestGetAssertionRejectsInvalidClientDataHashBeforeCommand(t *testing.T) {
@@ -423,7 +424,7 @@ func TestGetAssertionRejectsInvalidClientDataHashBeforeCommand(t *testing.T) {
 		nil,
 	) {
 		yielded++
-		assert.Equal(t, ctaptypes.AuthenticatorGetAssertionResponse{}, assertion)
+		assert.Equal(t, protocol.AuthenticatorGetAssertionResponse{}, assertion)
 		require.Error(t, err)
 	}
 	require.Equal(t, 1, yielded)
@@ -431,16 +432,16 @@ func TestGetAssertionRejectsInvalidClientDataHashBeforeCommand(t *testing.T) {
 }
 
 func TestGetAssertionFetchesNextAssertions(t *testing.T) {
-	first := encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	first := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw:         minimalAuthData(),
 		Signature:           []byte{1},
 		NumberOfCredentials: 3,
 	})
-	second := encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	second := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),
 		Signature:   []byte{2},
 	})
-	third := encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	third := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),
 		Signature:   []byte{3},
 	})
@@ -467,16 +468,16 @@ func TestGetAssertionFetchesNextAssertions(t *testing.T) {
 	require.Len(t, requests, 3)
 
 	command, _ := requests[0].CTAPPayload(t)
-	assert.Equal(t, ctaptypes.AuthenticatorGetAssertion, command)
+	assert.Equal(t, protocol.AuthenticatorGetAssertion, command)
 	for _, request := range requests[1:] {
 		command, body := request.CTAPPayload(t)
-		assert.Equal(t, ctaptypes.AuthenticatorGetNextAssertion, command)
+		assert.Equal(t, protocol.AuthenticatorGetNextAssertion, command)
 		assert.Empty(t, body)
 	}
 }
 
 func TestGetAssertionStopsBeforeGetNextAssertionWhenIteratorStops(t *testing.T) {
-	first := encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+	first := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw:         minimalAuthData(),
 		Signature:           []byte{1},
 		NumberOfCredentials: 2,
@@ -522,14 +523,14 @@ func TestGetAssertionReturnsResponseDecodeErrors(t *testing.T) {
 			nil,
 		) {
 			yielded++
-			assert.Equal(t, ctaptypes.AuthenticatorGetAssertionResponse{}, assertion)
+			assert.Equal(t, protocol.AuthenticatorGetAssertionResponse{}, assertion)
 			require.Error(t, err)
 		}
 		require.Equal(t, 1, yielded)
 	})
 
 	t.Run("invalid authData", func(t *testing.T) {
-		fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorGetAssertionResponse{
+		fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 			AuthDataRaw: []byte{1},
 			Signature:   []byte{1},
 		}))
@@ -547,7 +548,7 @@ func TestGetAssertionReturnsResponseDecodeErrors(t *testing.T) {
 			nil,
 		) {
 			yielded++
-			assert.Equal(t, ctaptypes.AuthenticatorGetAssertionResponse{}, assertion)
+			assert.Equal(t, protocol.AuthenticatorGetAssertionResponse{}, assertion)
 			require.Error(t, err)
 		}
 		require.Equal(t, 1, yielded)
@@ -557,28 +558,28 @@ func TestGetAssertionReturnsResponseDecodeErrors(t *testing.T) {
 func TestClientPINRequestShapes(t *testing.T) {
 	t.Run("set PIN", func(t *testing.T) {
 		fake := testhid.NewCBORDevice(t, testCID, nil)
-		err := NewClient().SetPIN(fake, testCID, ctaptypes.PinUvAuthProtocolOne, testKeyAgreement(t), "1234")
+		err := NewClient().SetPIN(fake, testCID, protocol.PinUvAuthProtocolOne, testKeyAgreement(t), "1234")
 		require.NoError(t, err)
 
 		command, request := fake.FirstCTAPRequestMap(t)
-		assert.Equal(t, ctaptypes.AuthenticatorClientPIN, command)
+		assert.Equal(t, protocol.AuthenticatorClientPIN, command)
 		assertRequestKeys(t, request, 1, 2, 3, 4, 5)
-		assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(1)])
-		assert.Equal(t, uint64(ctaptypes.ClientPINSubCommandSetPIN), request[uint64(2)])
+		assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(1)])
+		assert.Equal(t, uint64(protocol.ClientPINSubCommandSetPIN), request[uint64(2)])
 		assert.Len(t, request[uint64(4)], 16)
 		assert.Len(t, request[uint64(5)], 64)
 	})
 
 	t.Run("change PIN", func(t *testing.T) {
 		fake := testhid.NewCBORDevice(t, testCID, nil)
-		err := NewClient().ChangePIN(fake, testCID, ctaptypes.PinUvAuthProtocolOne, testKeyAgreement(t), "1234", "5678")
+		err := NewClient().ChangePIN(fake, testCID, protocol.PinUvAuthProtocolOne, testKeyAgreement(t), "1234", "5678")
 		require.NoError(t, err)
 
 		command, request := fake.FirstCTAPRequestMap(t)
-		assert.Equal(t, ctaptypes.AuthenticatorClientPIN, command)
+		assert.Equal(t, protocol.AuthenticatorClientPIN, command)
 		assertRequestKeys(t, request, 1, 2, 3, 4, 5, 6)
-		assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(1)])
-		assert.Equal(t, uint64(ctaptypes.ClientPINSubCommandChangePIN), request[uint64(2)])
+		assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(1)])
+		assert.Equal(t, uint64(protocol.ClientPINSubCommandChangePIN), request[uint64(2)])
 		assert.Len(t, request[uint64(4)], 16)
 		assert.Len(t, request[uint64(5)], 64)
 		assert.Len(t, request[uint64(6)], 16)
@@ -586,7 +587,7 @@ func TestClientPINRequestShapes(t *testing.T) {
 
 	t.Run("get PIN token validates PIN before command", func(t *testing.T) {
 		fake := testhid.NewCBORDevice(t, testCID)
-		_, err := NewClient().GetPinToken(fake, testCID, ctaptypes.PinUvAuthProtocolOne, testKeyAgreement(t), "123\x00")
+		_, err := NewClient().GetPinToken(fake, testCID, protocol.PinUvAuthProtocolOne, testKeyAgreement(t), "123\x00")
 		require.Error(t, err)
 		assert.Empty(t, fake.Writes())
 	})
@@ -596,10 +597,10 @@ func TestClientPINRequestShapes(t *testing.T) {
 		_, err := NewClient().GetPinUvAuthTokenUsingPinWithPermissions(
 			fake,
 			testCID,
-			ctaptypes.PinUvAuthProtocolOne,
+			protocol.PinUvAuthProtocolOne,
 			testKeyAgreement(t),
 			"123\x00",
-			ctaptypes.PermissionCredentialManagement,
+			protocol.PermissionCredentialManagement,
 			"",
 		)
 		require.Error(t, err)
@@ -610,44 +611,44 @@ func TestClientPINRequestShapes(t *testing.T) {
 func TestBioEnrollmentRequestShapeAndPINAuthParam(t *testing.T) {
 	token := pinUvAuthToken()
 	timeoutMilliseconds := uint(1000)
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorBioEnrollmentResponse{}))
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorBioEnrollmentResponse{}))
 
-	resp, err := NewClient().EnrollBegin(fake, testCID, false, ctaptypes.PinUvAuthProtocolOne, token, timeoutMilliseconds)
+	resp, err := NewClient().EnrollBegin(fake, testCID, false, protocol.PinUvAuthProtocolOne, token, timeoutMilliseconds)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorBioEnrollment, command)
+	assert.Equal(t, protocol.AuthenticatorBioEnrollment, command)
 	assertRequestKeys(t, request, 1, 2, 3, 4, 5)
-	assert.Equal(t, uint64(ctaptypes.BioModalityFingerprint), request[uint64(1)])
-	assert.Equal(t, uint64(ctaptypes.BioEnrollmentSubCommandEnrollBegin), request[uint64(2)])
+	assert.Equal(t, uint64(protocol.BioModalityFingerprint), request[uint64(1)])
+	assert.Equal(t, uint64(protocol.BioEnrollmentSubCommandEnrollBegin), request[uint64(2)])
 
-	params := ctaptypes.BioEnrollmentSubCommandParams{TimeoutMilliseconds: timeoutMilliseconds}
+	params := protocol.BioEnrollmentSubCommandParams{TimeoutMilliseconds: timeoutMilliseconds}
 	paramsCBOR := encodeCBOR(t, params)
 	expectedParam := crypto.Authenticate(
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
-		slices.Concat([]byte{byte(ctaptypes.BioModalityFingerprint), byte(ctaptypes.BioEnrollmentSubCommandEnrollBegin)}, paramsCBOR),
+		slices.Concat([]byte{byte(protocol.BioModalityFingerprint), byte(protocol.BioEnrollmentSubCommandEnrollBegin)}, paramsCBOR),
 	)
 	assert.Equal(t, expectedParam, request[uint64(5)])
 }
 
 func TestCredentialManagementRequestShapeAndPINAuthParam(t *testing.T) {
 	token := pinUvAuthToken()
-	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &ctaptypes.AuthenticatorCredentialManagementResponse{}))
+	fake := testhid.NewCBORDevice(t, testCID, encodeCBOR(t, &protocol.AuthenticatorCredentialManagementResponse{}))
 
-	resp, err := NewClient().GetCredsMetadata(fake, testCID, false, ctaptypes.PinUvAuthProtocolOne, token)
+	resp, err := NewClient().GetCredsMetadata(fake, testCID, false, protocol.PinUvAuthProtocolOne, token)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorCredentialManagement, command)
+	assert.Equal(t, protocol.AuthenticatorCredentialManagement, command)
 	assertRequestKeys(t, request, 1, 3, 4)
-	assert.Equal(t, uint64(ctaptypes.CredentialManagementSubCommandGetCredsMetadata), request[uint64(1)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(3)])
+	assert.Equal(t, uint64(protocol.CredentialManagementSubCommandGetCredsMetadata), request[uint64(1)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(3)])
 	assert.Equal(
 		t,
-		crypto.Authenticate(ctaptypes.PinUvAuthProtocolOne, token, []byte{byte(ctaptypes.CredentialManagementSubCommandGetCredsMetadata)}),
+		crypto.Authenticate(protocol.PinUvAuthProtocolOne, token, []byte{byte(protocol.CredentialManagementSubCommandGetCredsMetadata)}),
 		request[uint64(4)],
 	)
 }
@@ -659,12 +660,12 @@ func TestLargeBlobsRequestShapeAndPINAuthParam(t *testing.T) {
 	length := uint(9)
 	fake := testhid.NewCBORDevice(t, testCID, nil)
 
-	resp, err := NewClient().LargeBlobs(fake, testCID, ctaptypes.PinUvAuthProtocolOne, token, 0, set, offset, length)
+	resp, err := NewClient().LargeBlobs(fake, testCID, protocol.PinUvAuthProtocolOne, token, 0, set, offset, length)
 	require.NoError(t, err)
 	require.Empty(t, resp.Config)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorLargeBlobs, command)
+	assert.Equal(t, protocol.AuthenticatorLargeBlobs, command)
 	assertRequestKeys(t, request, 2, 3, 4, 5, 6)
 	assert.Equal(t, set, request[uint64(2)])
 	assert.Equal(t, uint64(offset), request[uint64(3)])
@@ -675,37 +676,37 @@ func TestLargeBlobsRequestShapeAndPINAuthParam(t *testing.T) {
 	binary.LittleEndian.PutUint32(offsetBin, uint32(offset))
 	hash := sha256.Sum256(set)
 	expectedParam := crypto.Authenticate(
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
 		slices.Concat(padding, []byte{0x0c, 0x00}, offsetBin, hash[:]),
 	)
 	assert.Equal(t, expectedParam, request[uint64(5)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(6)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(6)])
 }
 
 func TestConfigRequestShapeAndPINAuthParam(t *testing.T) {
 	token := pinUvAuthToken()
 	fake := testhid.NewCBORDevice(t, testCID, nil)
 
-	err := NewClient().SetMinPINLength(fake, testCID, ctaptypes.PinUvAuthProtocolOne, token, 8, []string{"example.com"}, true, false)
+	err := NewClient().SetMinPINLength(fake, testCID, protocol.PinUvAuthProtocolOne, token, 8, []string{"example.com"}, true, false)
 	require.NoError(t, err)
 
 	command, request := fake.FirstCTAPRequestMap(t)
-	assert.Equal(t, ctaptypes.AuthenticatorConfig, command)
+	assert.Equal(t, protocol.AuthenticatorConfig, command)
 	assertRequestKeys(t, request, 1, 2, 3, 4)
-	assert.Equal(t, uint64(ctaptypes.ConfigSubCommandSetMinPINLength), request[uint64(1)])
-	assert.Equal(t, uint64(ctaptypes.PinUvAuthProtocolOne), request[uint64(3)])
+	assert.Equal(t, uint64(protocol.ConfigSubCommandSetMinPINLength), request[uint64(1)])
+	assert.Equal(t, uint64(protocol.PinUvAuthProtocolOne), request[uint64(3)])
 
-	params := &ctaptypes.SetMinPINLengthConfigSubCommandParams{
+	params := &protocol.SetMinPINLengthConfigSubCommandParams{
 		NewMinPINLength:   8,
 		MinPinLengthRPIDs: []string{"example.com"},
 		ForceChangePin:    true,
 	}
 	paramsCBOR := encodeCBOR(t, params)
 	expectedParam := crypto.Authenticate(
-		ctaptypes.PinUvAuthProtocolOne,
+		protocol.PinUvAuthProtocolOne,
 		token,
-		slices.Concat(bytes.Repeat([]byte{0xff}, 32), []byte{0x0d, byte(ctaptypes.ConfigSubCommandSetMinPINLength)}, paramsCBOR),
+		slices.Concat(bytes.Repeat([]byte{0xff}, 32), []byte{0x0d, byte(protocol.ConfigSubCommandSetMinPINLength)}, paramsCBOR),
 	)
 	assert.Equal(t, expectedParam, request[uint64(4)])
 }
