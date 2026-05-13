@@ -20,7 +20,11 @@ func Enumerate(ctx context.Context) iter.Seq2[*ghid.DeviceInfo, error] {
 			}
 		}
 
-		for devInfo, err := range ghid.Enumerate() {
+		fidoFilter := ghid.WithDeviceInfoFilter(func(info *ghid.DeviceInfo) bool {
+			return info.UsagePage == 0xf1d0 && info.Usage == 0x01
+		})
+
+		for devInfo, err := range ghid.Enumerate(fidoFilter) {
 			if !yield(devInfo, err) {
 				return
 			}

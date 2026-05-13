@@ -30,7 +30,7 @@ type Device struct {
 	Path              string
 	device            io.ReadWriteCloser
 	cid               [4]byte
-	info              *ctaptypes.AuthenticatorGetInfoResponse
+	info              ctaptypes.AuthenticatorGetInfoResponse
 	pinUvAuthProtocol ctaptypes.PinUvAuthProtocol
 	ctapClient        *ctap.Client
 	encMode           cbor.EncMode
@@ -63,6 +63,16 @@ func (d *Device) pinUvAuthProtocolWithKeyAgreement() (ctaptypes.PinUvAuthProtoco
 	}
 
 	return pinUvAuthProtocol, keyAgreement, nil
+}
+
+func (d *Device) refreshInfoLocked() error {
+	info, err := d.ctapClient.GetInfo(d.device, d.cid)
+	if err != nil {
+		return err
+	}
+
+	d.info = info
+	return nil
 }
 
 func (d *Device) maxFragmentLength() uint {
@@ -111,7 +121,7 @@ func New(path string, opts ...options.Option) (*Device, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.info = &info
+	d.info = info
 	if len(info.PinUvAuthProtocols) > 0 {
 		d.pinUvAuthProtocol = info.PinUvAuthProtocols[0]
 	}
@@ -818,10 +828,7 @@ func (d *Device) GetAssertion(
 
 // GetInfo returns the struct containing metadata and capabilities of the device.
 func (d *Device) GetInfo() ctaptypes.AuthenticatorGetInfoResponse {
-	if d.info == nil {
-		return ctaptypes.AuthenticatorGetInfoResponse{}
-	}
-	return *d.info
+	return d.info
 }
 
 // GetPINRetries retrieves the number of PIN retries remaining for the device, and if it requires a power cycle
@@ -870,7 +877,11 @@ func (d *Device) SetPIN(pin string) error {
 		return err
 	}
 
-	return d.ctapClient.SetPIN(d.device, d.cid, pinUvAuthProtocol, keyAgreement, pin)
+	if err := d.ctapClient.SetPIN(d.device, d.cid, pinUvAuthProtocol, keyAgreement, pin); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 // ChangePIN updates the device's PIN by using the provided current PIN and new PIN.
@@ -901,14 +912,18 @@ func (d *Device) ChangePIN(currentPin, newPin string) error {
 		return err
 	}
 
-	return d.ctapClient.ChangePIN(
+	if err := d.ctapClient.ChangePIN(
 		d.device,
 		d.cid,
 		pinUvAuthProtocol,
 		keyAgreement,
 		currentPin,
 		newPin,
-	)
+	); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 // GetPinUvAuthTokenUsingPIN obtains a pinUvAuthToken using a given PIN, permission, and in some cases optional
@@ -1048,7 +1063,11 @@ func (d *Device) Reset() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	return ctap.Reset(d.device, d.cid)
+	if err := ctap.Reset(d.device, d.cid); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 // GetBioModality returns bio modality of authenticator.
@@ -1096,9 +1115,9 @@ func (d *Device) GetFingerprintSensorInfo() (ctaptypes.AuthenticatorBioEnrollmen
 	)
 }
 
-// BeginEnroll begins a fingerprint enrollment process and returns TemplateID, LastEnrollSampleStatus,
+// EnrollBegin begins a fingerprint enrollment process and returns TemplateID, LastEnrollSampleStatus,
 // and RemainingSamples properties. Use those properties to continue to capture the next samples or cancel it.
-func (d *Device) BeginEnroll(
+func (d *Device) EnrollBegin(
 	pinUvAuthToken []byte,
 	timeoutMilliseconds uint,
 ) (ctaptypes.AuthenticatorBioEnrollmentResponse, error) {
@@ -1118,7 +1137,7 @@ func (d *Device) BeginEnroll(
 		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
-	return d.ctapClient.BeginEnroll(
+	resp, err := d.ctapClient.EnrollBegin(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
@@ -1126,6 +1145,17 @@ func (d *Device) BeginEnroll(
 		pinUvAuthToken,
 		timeoutMilliseconds,
 	)
+	if err != nil {
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
+	}
+
+	if len(resp.TemplateID) > 0 && resp.RemainingSamples == 0 {
+		if err := d.refreshInfoLocked(); err != nil {
+			return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
+		}
+	}
+
+	return resp, nil
 }
 
 // EnrollCaptureNextSample continues capturing samples from an already started enrollment process.
@@ -1150,7 +1180,7 @@ func (d *Device) EnrollCaptureNextSample(
 		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
-	return d.ctapClient.EnrollCaptureNextSample(
+	resp, err := d.ctapClient.EnrollCaptureNextSample(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
@@ -1159,6 +1189,17 @@ func (d *Device) EnrollCaptureNextSample(
 		templateID,
 		timeoutMilliseconds,
 	)
+	if err != nil {
+		return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
+	}
+
+	if len(resp.TemplateID) > 0 && resp.RemainingSamples == 0 {
+		if err := d.refreshInfoLocked(); err != nil {
+			return ctaptypes.AuthenticatorBioEnrollmentResponse{}, err
+		}
+	}
+
+	return resp, nil
 }
 
 // CancelCurrentEnrollment cancels a current enrollment process.
@@ -1256,14 +1297,18 @@ func (d *Device) RemoveEnrollment(pinUvAuthToken []byte, templateID []byte) erro
 		return err
 	}
 
-	return d.ctapClient.RemoveEnrollment(
+	if err := d.ctapClient.RemoveEnrollment(
 		d.device,
 		d.cid,
 		d.info.Versions.IsPreviewOnly(),
 		pinUvAuthProtocol,
 		pinUvAuthToken,
 		templateID,
-	)
+	); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 // GetCredsMetadata retrieves credential management metadata if the device supports it.
@@ -1596,12 +1641,16 @@ func (d *Device) EnableEnterpriseAttestation(pinUvAuthToken []byte) error {
 		return err
 	}
 
-	return d.ctapClient.EnableEnterpriseAttestation(
+	if err := d.ctapClient.EnableEnterpriseAttestation(
 		d.device,
 		d.cid,
 		pinUvAuthProtocol,
 		pinUvAuthToken,
-	)
+	); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 // ToggleAlwaysUV toggles the always UV (User Verification) setting on the device if supported, using the provided token.
@@ -1621,12 +1670,16 @@ func (d *Device) ToggleAlwaysUV(pinUvAuthToken []byte) error {
 		return err
 	}
 
-	return d.ctapClient.ToggleAlwaysUV(
+	if err := d.ctapClient.ToggleAlwaysUV(
 		d.device,
 		d.cid,
 		pinUvAuthProtocol,
 		pinUvAuthToken,
-	)
+	); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 func (d *Device) SetMinPINLength(
@@ -1648,7 +1701,7 @@ func (d *Device) SetMinPINLength(
 		return err
 	}
 
-	return d.ctapClient.SetMinPINLength(
+	if err := d.ctapClient.SetMinPINLength(
 		d.device,
 		d.cid,
 		pinUvAuthProtocol,
@@ -1657,7 +1710,11 @@ func (d *Device) SetMinPINLength(
 		minPinLengthRPIDs,
 		forceChangePin,
 		pinComplexityPolicy,
-	)
+	); err != nil {
+		return err
+	}
+
+	return d.refreshInfoLocked()
 }
 
 // Selection is a higher-level version of ctap.Selection, which cancels the

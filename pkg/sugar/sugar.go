@@ -24,10 +24,6 @@ func EnumerateFIDODevices(opts ...options.Option) ([]*ghid.DeviceInfo, error) {
 			return nil, err
 		}
 
-		if devInfo.UsagePage != 0xf1d0 || devInfo.Usage != 0x01 {
-			continue
-		}
-
 		devInfos = append(devInfos, devInfo)
 	}
 

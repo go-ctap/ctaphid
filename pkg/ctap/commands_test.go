@@ -312,7 +312,7 @@ func TestBioEnrollmentRequestShapeAndPINAuthParam(t *testing.T) {
 	timeoutMilliseconds := uint(1000)
 	fake := newScriptedDevice(t, encodeCBOR(t, &ctaptypes.AuthenticatorBioEnrollmentResponse{}))
 
-	resp, err := NewClient().BeginEnroll(fake, testCID, false, ctaptypes.PinUvAuthProtocolOne, token, timeoutMilliseconds)
+	resp, err := NewClient().EnrollBegin(fake, testCID, false, ctaptypes.PinUvAuthProtocolOne, token, timeoutMilliseconds)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 

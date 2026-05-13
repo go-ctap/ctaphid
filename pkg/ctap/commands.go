@@ -692,7 +692,7 @@ func (cl *Client) GetFingerprintSensorInfo(
 	return resp, nil
 }
 
-func (cl *Client) BeginEnroll(
+func (cl *Client) EnrollBegin(
 	device io.ReadWriter,
 	cid ctaphid.ChannelID,
 	preview bool,
