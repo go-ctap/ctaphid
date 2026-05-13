@@ -117,7 +117,14 @@ func Authenticate(number ctaptypes.PinUvAuthProtocol, sharedSecret []byte, messa
 }
 
 func EncryptLargeBlob(key []byte, origData []byte) (ctaptypes.LargeBlob, error) {
+	if len(key) != 32 {
+		return ctaptypes.LargeBlob{}, fmt.Errorf("invalid large blob key length: got %d, want 32", len(key))
+	}
+
 	plaintext, err := compress(origData)
+	if err != nil {
+		return ctaptypes.LargeBlob{}, err
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -147,6 +154,10 @@ func EncryptLargeBlob(key []byte, origData []byte) (ctaptypes.LargeBlob, error) 
 }
 
 func DecryptLargeBlob(key []byte, blob ctaptypes.LargeBlob) ([]byte, error) {
+	if len(key) != 32 {
+		return nil, fmt.Errorf("invalid large blob key length: got %d, want 32", len(key))
+	}
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -155,6 +166,9 @@ func DecryptLargeBlob(key []byte, blob ctaptypes.LargeBlob) ([]byte, error) {
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
+	}
+	if len(blob.Nonce) != gcm.NonceSize() {
+		return nil, fmt.Errorf("invalid large blob nonce length: got %d, want %d", len(blob.Nonce), gcm.NonceSize())
 	}
 
 	origSizeBin := make([]byte, 8)
@@ -168,6 +182,9 @@ func DecryptLargeBlob(key []byte, blob ctaptypes.LargeBlob) ([]byte, error) {
 	origData, err := decompress(plaintext)
 	if err != nil {
 		return nil, err
+	}
+	if uint(len(origData)) != blob.OrigSize {
+		return nil, fmt.Errorf("large blob orig size mismatch: got %d, want %d", len(origData), blob.OrigSize)
 	}
 
 	return origData, nil

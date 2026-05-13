@@ -73,6 +73,20 @@ func TestEncryptDecrypt(t *testing.T) {
 	}
 }
 
+func TestDecryptRejectsInvalidInputs(t *testing.T) {
+	key, _ := base64.StdEncoding.DecodeString(derivedSecret)
+	badKey := append(key, 0)
+
+	_, err := Decrypt(badKey, []byte("16-byte block..."))
+	assert.Error(t, err)
+
+	_, err = Decrypt(key, nil)
+	assert.Error(t, err)
+
+	_, err = Decrypt(key, []byte("not block aligned"))
+	assert.Error(t, err)
+}
+
 func TestAuthenticate(t *testing.T) {
 	key, _ := base64.StdEncoding.DecodeString(derivedSecret)
 	message := []byte("hello world!")

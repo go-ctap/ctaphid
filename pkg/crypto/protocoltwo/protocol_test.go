@@ -1,6 +1,7 @@
 package protocoltwo
 
 import (
+	"bytes"
 	"encoding/base64"
 	"math/rand"
 	"slices"
@@ -73,6 +74,24 @@ func TestEncryptDecrypt(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, longPlaintext, decrypted)
 	}
+}
+
+func TestDecryptRejectsInvalidInputs(t *testing.T) {
+	key, _ := base64.StdEncoding.DecodeString(derivedSecret)
+	badKey := append(key, 0)
+	iv := bytes.Repeat([]byte{0x01}, 16)
+
+	_, err := Decrypt(badKey, slices.Concat(iv, []byte("16-byte block...")))
+	assert.Error(t, err)
+
+	_, err = Decrypt(key, []byte("short iv"))
+	assert.Error(t, err)
+
+	_, err = Decrypt(key, iv)
+	assert.Error(t, err)
+
+	_, err = Decrypt(key, slices.Concat(iv, []byte("not block aligned!")))
+	assert.Error(t, err)
 }
 
 func TestAuthenticate(t *testing.T) {
