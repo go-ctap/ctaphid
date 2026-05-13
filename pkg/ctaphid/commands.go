@@ -28,6 +28,10 @@ func ensureResponseCID(msg Message, cid ChannelID) error {
 }
 
 func CBOR(dev io.ReadWriter, cid ChannelID, data []byte) (CBORResponse, error) {
+	if len(data) < 1 {
+		return CBORResponse{}, ErrInvalidRequestMessage
+	}
+
 	msg, err := NewMessage(cid, CTAPHID_CBOR, data)
 	if err != nil {
 		return CBORResponse{}, err
@@ -89,6 +93,10 @@ read:
 }
 
 func Init(dev io.ReadWriter, cid ChannelID, nonce []byte) (InitResponse, error) {
+	if len(nonce) != 8 {
+		return InitResponse{}, ErrInvalidRequestMessage
+	}
+
 	msg, err := NewMessage(cid, CTAPHID_INIT, nonce)
 	if err != nil {
 		return InitResponse{}, err
@@ -244,6 +252,10 @@ func Wink(dev io.ReadWriter, cid ChannelID) error {
 }
 
 func Lock(dev io.ReadWriter, cid ChannelID, seconds uint8) error {
+	if seconds > 10 {
+		return ErrInvalidRequestMessage
+	}
+
 	msg, err := NewMessage(cid, CTAPHID_LOCK, []byte{seconds})
 	if err != nil {
 		return err
