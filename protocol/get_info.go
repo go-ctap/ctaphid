@@ -109,7 +109,7 @@ type AuthenticatorGetInfoResponse struct {
 	EncIdentifier                    []byte                                     `cbor:"25,keyasint" json:"encIdentifier,omitempty"`
 	TransportsForReset               []string                                   `cbor:"26,keyasint" json:"transportsForReset,omitempty"`
 	PinComplexityPolicy              *bool                                      `cbor:"27,keyasint" json:"pinComplexityPolicy,omitempty"`
-	PinComplexityPolicyURL           []byte                                     `cbor:"28,keyasint" json:"pinComplexityPolicyURL,omitempty"`
+	PinComplexityPolicyURL           *string                                    `cbor:"28,keyasint" json:"pinComplexityPolicyURL,omitempty"`
 	MaxPINLength                     *uint                                      `cbor:"29,keyasint" json:"maxPINLength,omitempty"`
 	EncCredStoreState                []byte                                     `cbor:"30,keyasint" json:"encCredStoreState,omitempty"`
 	AuthenticatorConfigCommands      []uint                                     `cbor:"31,keyasint" json:"authenticatorConfigCommands,omitempty"`
