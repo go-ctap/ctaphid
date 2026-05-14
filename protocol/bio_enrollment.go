@@ -16,14 +16,14 @@ type BioEnrollmentSubCommandParams struct {
 }
 
 type AuthenticatorBioEnrollmentResponse struct {
-	Modality                           BioModality            `cbor:"1,keyasint,omitempty"`
-	FingerprintKind                    uint                   `cbor:"2,keyasint,omitempty"`
-	MaxCaptureSamplesRequiredForEnroll uint                   `cbor:"3,keyasint,omitempty"`
-	TemplateID                         []byte                 `cbor:"4,keyasint,omitempty"`
-	LastEnrollSampleStatus             LastEnrollSampleStatus `cbor:"5,keyasint,omitempty"`
-	RemainingSamples                   uint                   `cbor:"6,keyasint,omitempty"`
-	TemplateInfos                      []TemplateInfo         `cbor:"7,keyasint,omitzero"`
-	MaxTemplateFriendlyName            uint                   `cbor:"8,keyasint,omitempty"`
+	Modality                           *BioModality            `cbor:"1,keyasint,omitempty"`
+	FingerprintKind                    *uint                   `cbor:"2,keyasint,omitempty"`
+	MaxCaptureSamplesRequiredForEnroll *uint                   `cbor:"3,keyasint,omitempty"`
+	TemplateID                         []byte                  `cbor:"4,keyasint,omitempty"`
+	LastEnrollSampleStatus             *LastEnrollSampleStatus `cbor:"5,keyasint,omitempty"`
+	RemainingSamples                   *uint                   `cbor:"6,keyasint,omitempty"`
+	TemplateInfos                      []TemplateInfo          `cbor:"7,keyasint,omitzero"`
+	MaxTemplateFriendlyName            *uint                   `cbor:"8,keyasint,omitempty"`
 }
 
 type TemplateInfo struct {

@@ -17,6 +17,7 @@ var (
 	ErrUvNotConfigured          = errors.New("device: UV not configured")
 	ErrLargeBlobsIntegrityCheck = errors.New("device: large blobs integrity check failed")
 	ErrLargeBlobsTooBig         = errors.New("device: size of serialized large blobs is too big that token")
+	ErrSpecViolation            = errors.New("device: spec violation")
 )
 
 type ErrorWithMessage struct {

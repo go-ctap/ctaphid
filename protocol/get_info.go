@@ -106,12 +106,12 @@ type AuthenticatorGetInfoResponse struct {
 	AttestationFormats               []string                                   `cbor:"22,keyasint" json:"attestationFormats,omitempty"`
 	UvCountSinceLastPinEntry         *uint                                      `cbor:"23,keyasint" json:"uvCountSinceLastPinEntry,omitempty"`
 	LongTouchForReset                *bool                                      `cbor:"24,keyasint" json:"longTouchForReset,omitempty"`
-	EncIdentifier                    *string                                    `cbor:"25,keyasint" json:"encIdentifier,omitempty"`
+	EncIdentifier                    []byte                                     `cbor:"25,keyasint" json:"encIdentifier,omitempty"`
 	TransportsForReset               []string                                   `cbor:"26,keyasint" json:"transportsForReset,omitempty"`
 	PinComplexityPolicy              *bool                                      `cbor:"27,keyasint" json:"pinComplexityPolicy,omitempty"`
-	PinComplexityPolicyURL           *string                                    `cbor:"28,keyasint" json:"pinComplexityPolicyURL,omitempty"`
+	PinComplexityPolicyURL           []byte                                     `cbor:"28,keyasint" json:"pinComplexityPolicyURL,omitempty"`
 	MaxPINLength                     *uint                                      `cbor:"29,keyasint" json:"maxPINLength,omitempty"`
-	EncCredStoreState                *string                                    `cbor:"30,keyasint" json:"encCredStoreState,omitempty"`
+	EncCredStoreState                []byte                                     `cbor:"30,keyasint" json:"encCredStoreState,omitempty"`
 	AuthenticatorConfigCommands      []uint                                     `cbor:"31,keyasint" json:"authenticatorConfigCommands,omitempty"`
 }
 

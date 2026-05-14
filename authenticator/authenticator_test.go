@@ -73,7 +73,7 @@ func TestGetAssertionContinuesAfterAssertionWithoutExtensionData(t *testing.T) {
 	first := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw:         minimalAuthData(),
 		Signature:           []byte{1},
-		NumberOfCredentials: 2,
+		NumberOfCredentials: new(uint(2)),
 	})
 	second := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),

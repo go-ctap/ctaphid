@@ -39,16 +39,16 @@ const (
 // https://www.w3.org/TR/webauthn-3/#dictdef-publickeycredentialrpentity
 type PublicKeyCredentialRpEntity struct {
 	ID   string `cbor:"id" json:"id"`
-	Name string `cbor:"name,omitempty" json:"name,omitempty"`
+	Name string `cbor:"name,omitempty" json:"name"`
 }
 
 // PublicKeyCredentialUserEntity is used to supply additional user account attributes when creating a new credential.
 // https://www.w3.org/TR/webauthn-3/#dictdef-publickeycredentialuserentity
 type PublicKeyCredentialUserEntity struct {
-	ID          []byte `cbor:"id"`
-	DisplayName string `cbor:"displayName,omitempty"`
-	Name        string `cbor:"name,omitempty"`
-	Icon        string `cbor:"icon,omitempty"` // deprecated
+	ID          []byte `cbor:"id" json:"id"`
+	DisplayName string `cbor:"displayName" json:"displayName"`
+	Name        string `cbor:"name" json:"name"`
+	Icon        string `cbor:"icon,omitempty" json:"icon,omitempty"` // deprecated
 }
 
 // PublicKeyCredentialDescriptor identifies a specific public key credential.

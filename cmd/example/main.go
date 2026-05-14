@@ -34,7 +34,9 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("PIN retries: %d\n", retries)
-	fmt.Printf("Power cycle required: %t\n", powerCycleRequired)
+	if powerCycleRequired != nil {
+		fmt.Printf("Power cycle required: %t\n", *powerCycleRequired)
+	}
 
 	token, err := dev.GetPinUvAuthTokenUsingPIN(
 		"12345678",

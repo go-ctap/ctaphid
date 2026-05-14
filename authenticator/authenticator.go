@@ -835,21 +835,21 @@ func (d *Device) GetInfo() protocol.AuthenticatorGetInfoResponse {
 
 // GetPINRetries retrieves the number of PIN retries remaining for the device, and if it requires a power cycle
 // (after reaching the limit, you can reset remaining tries by re-connecting the token).
-func (d *Device) GetPINRetries() (uint, bool, error) {
+func (d *Device) GetPINRetries() (uint, *bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	clientPin, ok := d.info.Options[protocol.OptionClientPIN]
 	if !ok {
-		return 0, false, newErrorMessage(ErrNotSupported, "device doesn't support clientPin option")
+		return 0, nil, newErrorMessage(ErrNotSupported, "device doesn't support clientPin option")
 	}
 	if !clientPin {
-		return 0, false, newErrorMessage(ErrPinNotSet, "please set PIN first")
+		return 0, nil, newErrorMessage(ErrPinNotSet, "please set PIN first")
 	}
 
 	pinUvAuthProtocol, err := d.requirePinUvAuthProtocol()
 	if err != nil {
-		return 0, false, err
+		return 0, nil, err
 	}
 
 	return d.ctapClient.GetPINRetries(d.device, d.cid, pinUvAuthProtocol)
@@ -1151,7 +1151,11 @@ func (d *Device) EnrollBegin(
 		return protocol.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
-	if len(resp.TemplateID) > 0 && resp.RemainingSamples == 0 {
+	if resp.RemainingSamples == nil {
+		return protocol.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrSpecViolation, "device must return remaining samples")
+	}
+
+	if len(resp.TemplateID) > 0 && *resp.RemainingSamples == 0 {
 		if err := d.refreshInfoLocked(); err != nil {
 			return protocol.AuthenticatorBioEnrollmentResponse{}, err
 		}
@@ -1195,7 +1199,11 @@ func (d *Device) EnrollCaptureNextSample(
 		return protocol.AuthenticatorBioEnrollmentResponse{}, err
 	}
 
-	if len(resp.TemplateID) > 0 && resp.RemainingSamples == 0 {
+	if resp.RemainingSamples == nil {
+		return protocol.AuthenticatorBioEnrollmentResponse{}, newErrorMessage(ErrSpecViolation, "device must return remaining samples")
+	}
+
+	if len(resp.TemplateID) > 0 && *resp.RemainingSamples == 0 {
 		if err := d.refreshInfoLocked(); err != nil {
 			return protocol.AuthenticatorBioEnrollmentResponse{}, err
 		}

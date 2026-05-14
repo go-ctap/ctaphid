@@ -1,6 +1,6 @@
 module github.com/go-ctap/ctap
 
-go 1.25.8
+go 1.26.3
 
 require (
 	github.com/Microsoft/go-winio v0.6.2

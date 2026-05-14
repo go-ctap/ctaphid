@@ -11,8 +11,10 @@ It exposes several abstraction levels, from raw CTAPHID transport framing to erg
 
 ## Current Status
 
-Library supports almost entire CTAP 2.2 specification, except few extensions which are not yet seen in the wild
-(`hmac-secret-mc`, dedicated `largeBlob`, not to be confused with `largeBlobKey` which is supported).
+The library implements the CTAP 2.1 core command set over CTAPHID, with NFC and BLE transports out of scope for now.
+It also includes selected CTAP 2.2 and CTAP 2.3 features and extensions, such as `largeBlobKey` and `hmac-secret-mc`.
+The `hmac-secret-mc` implementation has not yet been tested against a physical authenticator with support for it, and
+the dedicated `largeBlob` extension is still pending.
 
 My current priorities are to write better tests and completely replace [sstallion/go-hid](https://github.com/sstallion/go-hid)
 with the [go-ctap/hid](https://github.com/go-ctap/hid) `cgo`-free alternative.

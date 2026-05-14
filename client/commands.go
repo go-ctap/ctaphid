@@ -168,7 +168,11 @@ func (cl *Client) GetAssertion(
 			return
 		}
 
-		for i := uint(1); i < respBegin.NumberOfCredentials; i++ {
+		if respBegin.NumberOfCredentials == nil {
+			return
+		}
+
+		for i := uint(1); i < *respBegin.NumberOfCredentials; i++ {
 			respRaw, err := ctaphid.CBOR(device, cid, []byte{byte(protocol.AuthenticatorGetNextAssertion)})
 			if err != nil {
 				yield(protocol.AuthenticatorGetAssertionResponse{}, err)
@@ -213,7 +217,7 @@ func (cl *Client) GetPINRetries(
 	device io.ReadWriter,
 	cid ctaphid.ChannelID,
 	pinUvAuthProtocol protocol.PinUvAuthProtocol,
-) (uint, bool, error) {
+) (uint, *bool, error) {
 	req := &protocol.AuthenticatorClientPINRequest{
 		// While this parameter is unnecessary, SoloKeys Solo 2 requires it for some reason.
 		PinUvAuthProtocol: pinUvAuthProtocol,
@@ -222,22 +226,26 @@ func (cl *Client) GetPINRetries(
 
 	b, err := cl.encMode.Marshal(req)
 	if err != nil {
-		return 0, false, err
+		return 0, nil, err
 	}
 	cl.logger.Debug("getPINRetries CBOR request", "hex", hex.EncodeToString(b))
 
 	respRaw, err := ctaphid.CBOR(device, cid, slices.Concat([]byte{byte(protocol.AuthenticatorClientPIN)}, b))
 	if err != nil {
-		return 0, false, err
+		return 0, nil, err
 	}
 	cl.logger.Debug("getPINRetries CBOR response", "hex", hex.EncodeToString(respRaw.Data))
 
 	var resp *protocol.AuthenticatorClientPINResponse
 	if err := cbor.Unmarshal(respRaw.Data, &resp); err != nil {
-		return 0, false, err
+		return 0, nil, err
 	}
 
-	return resp.PinRetries, resp.PowerCycleState, nil
+	if resp.PinRetries == nil {
+		return 0, nil, errors.New("spec violation: pinRetries is nil")
+	}
+
+	return *resp.PinRetries, resp.PowerCycleState, nil
 }
 
 func (cl *Client) GetKeyAgreement(
@@ -538,7 +546,11 @@ func (cl *Client) GetUVRetries(
 		return 0, err
 	}
 
-	return resp.UvRetries, nil
+	if resp.UvRetries == nil {
+		return 0, errors.New("spec violation: uvRetries is nil")
+	}
+
+	return *resp.UvRetries, err
 }
 
 // GetPinUvAuthTokenUsingPinWithPermissions allows getting a PinUvAuthToken with specific permissions using PIN.

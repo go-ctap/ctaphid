@@ -435,7 +435,7 @@ func TestGetAssertionFetchesNextAssertions(t *testing.T) {
 	first := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw:         minimalAuthData(),
 		Signature:           []byte{1},
-		NumberOfCredentials: 3,
+		NumberOfCredentials: new(uint(3)),
 	})
 	second := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw: minimalAuthData(),
@@ -480,7 +480,7 @@ func TestGetAssertionStopsBeforeGetNextAssertionWhenIteratorStops(t *testing.T) 
 	first := encodeCBOR(t, &protocol.AuthenticatorGetAssertionResponse{
 		AuthDataRaw:         minimalAuthData(),
 		Signature:           []byte{1},
-		NumberOfCredentials: 2,
+		NumberOfCredentials: new(uint(2)),
 	})
 	fake := testhid.NewCBORDevice(t, testCID, first)
 
